@@ -47,7 +47,7 @@ docker compose up --build
 | Backend API | http://localhost:8000/api/v1/ |
 | Django Admin | http://localhost:8000/admin/ |
 | PostgreSQL | localhost:5432 |
-
+ s
 ### 3. Create a superuser
 
 ```bash
