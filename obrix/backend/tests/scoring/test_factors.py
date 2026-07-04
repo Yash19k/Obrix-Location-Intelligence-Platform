@@ -1,0 +1,286 @@
+"""
+tests/scoring/test_factors.py
+
+Unit tests for each individual scoring factor.
+
+Tests verify:
+  - Zero counts produce minimum / neutral scores
+  - Saturated counts (at or above threshold) produce scores close to 100
+  - Partial counts produce proportional scores
+  - Explanation text is always a non-empty string
+  - sub_scores and inputs dicts are present
+  - Competition factor responds to positive/negative signals
+  - Environment factor returns default_score when no data
+"""
+
+from __future__ import annotations
+import unittest
+import sys
+from pathlib import Path
+
+# Add backend root to path
+_BACKEND = Path(__file__).resolve().parents[2]
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
+
+# Configure minimal Django to satisfy any transitive import (none expected,
+# but guard against accidental Django leakage in future refactors)
+import django
+from django.conf import settings
+if not settings.configured:
+    settings.configure(
+        DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
+        CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}},
+        INSTALLED_APPS=[],
+    )
+    django.setup()
+
+from intelligence.scoring.factors.accessibility  import AccessibilityFactor
+from intelligence.scoring.factors.infrastructure  import InfrastructureFactor
+from intelligence.scoring.factors.commercial      import CommercialFactor
+from intelligence.scoring.factors.competition     import CompetitionFactor
+from intelligence.scoring.factors.environment     import EnvironmentFactor
+from intelligence.scoring.config import (
+    FACTOR_THRESHOLDS, get_competition_rules, get_weight_profile
+)
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _make(FactorClass, counts: dict, **kwargs):
+    """Construct a factor instance and call compute()."""
+    f = FactorClass(lat=0, lon=0, radius_m=1000, osm_data=counts, **kwargs)
+    score, raw = f.compute()
+    return score, raw
+
+
+# ── AccessibilityFactor ───────────────────────────────────────────────────────
+
+class TestAccessibilityFactor(unittest.TestCase):
+
+    def test_zero_counts_gives_zero_score(self):
+        score, _ = _make(AccessibilityFactor, {"roads": 0, "bus_stops": 0})
+        self.assertEqual(score, 0.0)
+
+    def test_saturated_roads_and_stops_gives_100(self):
+        sat_roads = FACTOR_THRESHOLDS["accessibility"]["roads_saturation"]
+        sat_stops = FACTOR_THRESHOLDS["accessibility"]["bus_stops_saturation"]
+        score, _ = _make(AccessibilityFactor, {
+            "roads":     sat_roads,
+            "bus_stops": sat_stops,
+        })
+        self.assertAlmostEqual(score, 100.0, places=1)
+
+    def test_beyond_saturation_clamped_to_100(self):
+        score, _ = _make(AccessibilityFactor, {"roads": 9999, "bus_stops": 9999})
+        self.assertAlmostEqual(score, 100.0, places=1)
+
+    def test_half_saturation_gives_roughly_50(self):
+        sat_roads = FACTOR_THRESHOLDS["accessibility"]["roads_saturation"]
+        sat_stops = FACTOR_THRESHOLDS["accessibility"]["bus_stops_saturation"]
+        score, _ = _make(AccessibilityFactor, {
+            "roads":     sat_roads // 2,
+            "bus_stops": sat_stops // 2,
+        })
+        self.assertAlmostEqual(score, 50.0, places=1)
+
+    def test_explanation_is_non_empty_string(self):
+        _, raw = _make(AccessibilityFactor, {"roads": 5, "bus_stops": 2})
+        self.assertIsInstance(raw["explanation"], str)
+        self.assertGreater(len(raw["explanation"]), 0)
+
+    def test_sub_scores_present(self):
+        _, raw = _make(AccessibilityFactor, {"roads": 10, "bus_stops": 3})
+        self.assertIn("roads",     raw["sub_scores"])
+        self.assertIn("bus_stops", raw["sub_scores"])
+
+    def test_inputs_present(self):
+        _, raw = _make(AccessibilityFactor, {"roads": 7, "bus_stops": 1})
+        self.assertEqual(raw["inputs"]["roads"],     7)
+        self.assertEqual(raw["inputs"]["bus_stops"], 1)
+
+    def test_only_roads_no_bus_stops(self):
+        sat = FACTOR_THRESHOLDS["accessibility"]["roads_saturation"]
+        w   = FACTOR_THRESHOLDS["accessibility"]["roads_weight"]
+        score, _ = _make(AccessibilityFactor, {"roads": sat, "bus_stops": 0})
+        self.assertAlmostEqual(score, w * 100, places=1)
+
+    def test_missing_keys_treated_as_zero(self):
+        """Empty counts dict should not raise — defaults to 0."""
+        score, _ = _make(AccessibilityFactor, {})
+        self.assertEqual(score, 0.0)
+
+
+# ── InfrastructureFactor ─────────────────────────────────────────────────────
+
+class TestInfrastructureFactor(unittest.TestCase):
+
+    def test_zero_counts_gives_zero(self):
+        score, _ = _make(InfrastructureFactor, {
+            "hospitals": 0, "schools": 0, "banks": 0, "fuel_stations": 0
+        })
+        self.assertEqual(score, 0.0)
+
+    def test_saturated_all_gives_100(self):
+        cfg = FACTOR_THRESHOLDS["infrastructure"]
+        score, _ = _make(InfrastructureFactor, {
+            "hospitals":     cfg["hospitals_saturation"],
+            "schools":       cfg["schools_saturation"],
+            "banks":         cfg["banks_saturation"],
+            "fuel_stations": cfg["fuel_stations_saturation"],
+        })
+        self.assertAlmostEqual(score, 100.0, places=1)
+
+    def test_explanation_mentions_hospitals(self):
+        _, raw = _make(InfrastructureFactor, {
+            "hospitals": 5, "schools": 0, "banks": 0, "fuel_stations": 0
+        })
+        self.assertIn("hospital", raw["explanation"].lower())
+
+    def test_sub_scores_keys(self):
+        _, raw = _make(InfrastructureFactor, {
+            "hospitals": 1, "schools": 2, "banks": 3, "fuel_stations": 1
+        })
+        for key in ("hospitals", "schools", "banks", "fuel_stations"):
+            self.assertIn(key, raw["sub_scores"])
+
+    def test_missing_keys_treated_as_zero(self):
+        score, _ = _make(InfrastructureFactor, {})
+        self.assertEqual(score, 0.0)
+
+
+# ── CommercialFactor ──────────────────────────────────────────────────────────
+
+class TestCommercialFactor(unittest.TestCase):
+
+    def test_zero_gives_zero(self):
+        score, _ = _make(CommercialFactor, {"restaurants": 0, "banks": 0})
+        self.assertEqual(score, 0.0)
+
+    def test_saturated_gives_100(self):
+        cfg = FACTOR_THRESHOLDS["commercial"]
+        score, _ = _make(CommercialFactor, {
+            "restaurants": cfg["restaurants_saturation"],
+            "banks":       cfg["banks_saturation"],
+        })
+        self.assertAlmostEqual(score, 100.0, places=1)
+
+    def test_restaurants_dominate(self):
+        """Restaurants have higher weight than banks."""
+        cfg = FACTOR_THRESHOLDS["commercial"]
+        score_rest, _ = _make(CommercialFactor, {
+            "restaurants": cfg["restaurants_saturation"], "banks": 0
+        })
+        score_banks, _ = _make(CommercialFactor, {
+            "restaurants": 0, "banks": cfg["banks_saturation"]
+        })
+        # restaurants_weight > banks_weight
+        self.assertGreater(score_rest, score_banks)
+
+    def test_explanation_is_string(self):
+        _, raw = _make(CommercialFactor, {"restaurants": 20, "banks": 5})
+        self.assertIsInstance(raw["explanation"], str)
+
+
+# ── CompetitionFactor ─────────────────────────────────────────────────────────
+
+class TestCompetitionFactor(unittest.TestCase):
+
+    def test_retail_positive_signal_raises_score_above_baseline(self):
+        rules    = get_competition_rules("retail")
+        baseline = rules["baseline"]
+        sat      = rules["positive_saturation"]
+        pos_cat  = rules["positive_factor"]
+        score, _ = _make(CompetitionFactor,
+                         {pos_cat: sat}, business_type="retail")
+        self.assertGreater(score, baseline)
+
+    def test_hospital_negative_signal_lowers_score(self):
+        rules    = get_competition_rules("hospital")
+        baseline = rules["baseline"]
+        neg_cat  = rules["negative_factor"]
+        sat      = rules["negative_saturation"]
+        score, _ = _make(CompetitionFactor,
+                         {neg_cat: sat}, business_type="hospital")
+        self.assertLess(score, baseline)
+
+    def test_score_never_below_10(self):
+        score, _ = _make(CompetitionFactor,
+                         {"hospitals": 9999}, business_type="hospital")
+        self.assertGreaterEqual(score, 10.0)
+
+    def test_score_never_above_100(self):
+        score, _ = _make(CompetitionFactor,
+                         {"restaurants": 9999}, business_type="retail")
+        self.assertLessEqual(score, 100.0)
+
+    def test_generic_returns_baseline(self):
+        rules    = get_competition_rules("_default")
+        baseline = rules["baseline"]
+        score, _ = _make(CompetitionFactor, {}, business_type="generic")
+        self.assertEqual(score, float(baseline))
+
+    def test_unknown_business_type_uses_default(self):
+        """Unknown business types fall back to _default rules — no exception."""
+        score, _ = _make(CompetitionFactor, {}, business_type="unknown_type_xyz")
+        self.assertGreaterEqual(score, 0)
+
+    def test_inputs_dict_contains_business_type(self):
+        _, raw = _make(CompetitionFactor, {"restaurants": 10}, business_type="retail")
+        self.assertEqual(raw["inputs"]["business_type"], "retail")
+
+
+# ── EnvironmentFactor ─────────────────────────────────────────────────────────
+
+class TestEnvironmentFactor(unittest.TestCase):
+
+    def test_no_data_returns_default_score(self):
+        default = FACTOR_THRESHOLDS["environment"]["default_score"]
+        score, _ = _make(EnvironmentFactor, {})
+        self.assertEqual(score, float(default))
+
+    def test_saturated_parks_gives_100(self):
+        sat = FACTOR_THRESHOLDS["environment"]["parks_saturation"]
+        score, _ = _make(EnvironmentFactor, {"parks": sat})
+        self.assertAlmostEqual(score, 100.0, places=1)
+
+    def test_zero_parks_with_other_data_gives_zero(self):
+        # parks=0 but other keys present → parks score = 0
+        score, _ = _make(EnvironmentFactor, {"roads": 10, "parks": 0})
+        self.assertEqual(score, 0.0)
+
+    def test_explanation_is_string(self):
+        _, raw = _make(EnvironmentFactor, {"parks": 3})
+        self.assertIsInstance(raw["explanation"], str)
+
+
+# ── Config validation ─────────────────────────────────────────────────────────
+
+class TestConfig(unittest.TestCase):
+
+    def test_all_weight_profiles_sum_to_one(self):
+        from intelligence.scoring.config import WEIGHT_PROFILES
+        for btype, profile in WEIGHT_PROFILES.items():
+            total = sum(profile.values())
+            self.assertAlmostEqual(
+                total, 1.0, places=9,
+                msg=f"Weight profile '{btype}' sums to {total}, expected 1.0"
+            )
+
+    def test_get_weight_profile_returns_dict(self):
+        profile = get_weight_profile("retail")
+        self.assertIsInstance(profile, dict)
+        self.assertGreater(len(profile), 0)
+
+    def test_get_weight_profile_fallback_to_generic(self):
+        profile = get_weight_profile("unknown_xyz")
+        generic  = get_weight_profile("generic")
+        self.assertEqual(profile, generic)
+
+    def test_all_factor_threshold_dicts_present(self):
+        for factor in ("accessibility", "infrastructure", "commercial",
+                       "competition", "environment"):
+            self.assertIn(factor, FACTOR_THRESHOLDS)
+
+
+if __name__ == "__main__":
+    unittest.main()

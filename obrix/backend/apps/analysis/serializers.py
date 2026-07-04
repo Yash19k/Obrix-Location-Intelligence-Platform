@@ -1,16 +1,70 @@
-"""Serializers for the analysis app."""
+"""Serializers for the analysis app.
+
+Phase 3.2: AnalysisResultSerializer exposes feature_counts and feature_details
+as top-level read-only fields extracted from osm_data_snapshot.
+This keeps the API backwards-compatible — all existing fields are unchanged.
+"""
 
 from rest_framework import serializers
 from .models import AnalysisRequest, AnalysisResult, WeightConfig
 
 
 class AnalysisResultSerializer(serializers.ModelSerializer):
+    """
+    Serialiser for AnalysisResult.
+
+    Phase 3.2 additions (read-only, extracted from osm_data_snapshot):
+      - feature_counts   : {roads: 84, hospitals: 2, ...}
+      - feature_details  : {roads: ["Inner Circle", ...], ...}
+      - osm_query_meta   : {source, query_time_ms, total_features, osm_error}
+    """
+
+    # ── Derived fields from osm_data_snapshot ─────────────────────────────────
+
+    feature_counts = serializers.SerializerMethodField()
+    feature_details = serializers.SerializerMethodField()
+    osm_query_meta  = serializers.SerializerMethodField()
+
+    def get_feature_counts(self, obj) -> dict:
+        """
+        Return per-category feature counts as a flat dict.
+        Returns {} if osm_data_snapshot is empty or OSM call failed.
+        """
+        return obj.osm_data_snapshot.get("feature_counts", {})
+
+    def get_feature_details(self, obj) -> dict:
+        """Return top named features per category (list of strings)."""
+        return obj.osm_data_snapshot.get("feature_details", {})
+
+    def get_osm_query_meta(self, obj) -> dict:
+        """
+        Return OSM collection metadata for debugging/transparency.
+        """
+        snap = obj.osm_data_snapshot
+        return {
+            "source":         snap.get("source"),
+            "query_time_ms":  snap.get("query_time_ms"),
+            "total_features": snap.get("total_features", 0),
+            "radius_m":       snap.get("radius_m"),
+            "osm_error":      snap.get("osm_error"),
+        }
+
     class Meta:
-        model = AnalysisResult
+        model  = AnalysisResult
         fields = (
-            "id", "site_readiness_score", "score_breakdown",
-            "osm_data_snapshot", "ai_insights", "recommendations",
-            "raw_factors", "created_at",
+            # Original fields (unchanged)
+            "id",
+            "site_readiness_score",
+            "score_breakdown",
+            "osm_data_snapshot",
+            "ai_insights",
+            "recommendations",
+            "raw_factors",
+            "created_at",
+            # Phase 3.2 additions
+            "feature_counts",
+            "feature_details",
+            "osm_query_meta",
         )
         read_only_fields = fields
 
@@ -18,13 +72,13 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
 class AnalysisRequestSerializer(serializers.ModelSerializer):
     """
     Handles creation of an AnalysisRequest.
-    The result is nested and read-only — populated asynchronously.
+    The result is nested and read-only — populated synchronously in Phase 3.2.
     """
 
     result = AnalysisResultSerializer(read_only=True)
 
     class Meta:
-        model = AnalysisRequest
+        model  = AnalysisRequest
         fields = (
             "id", "latitude", "longitude", "radius_m", "business_type",
             "location", "status", "created_at", "completed_at", "result",
@@ -53,6 +107,6 @@ class AnalysisRequestSerializer(serializers.ModelSerializer):
 
 class WeightConfigSerializer(serializers.ModelSerializer):
     class Meta:
-        model = WeightConfig
+        model  = WeightConfig
         fields = ("id", "business_type", "weights", "is_default", "created_at")
         read_only_fields = ("id", "created_at")

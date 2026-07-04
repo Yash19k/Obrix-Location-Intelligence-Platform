@@ -20,7 +20,7 @@ import LocationSidebar from '@/components/analysis/LocationSidebar'
 import AnalysisPanel from '@/components/analysis/AnalysisPanel'
 
 export default function Analyze() {
-  const { showPanel, selectedLat } = useMapStore()
+  const { showPanel, selectedLat, isAnalyzing } = useMapStore()
   // Sidebar collapsed state for tablet/small screens
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -79,7 +79,7 @@ export default function Analyze() {
       <div
         className="flex-shrink-0 overflow-hidden border-l border-white/[0.07]
                    bg-[#0d1526] transition-all duration-[380ms] ease-in-out"
-        style={{ width: showPanel ? '380px' : '0px' }}
+        style={{ width: (showPanel || isAnalyzing) ? '380px' : '0px' }}
       >
         {/* Fixed inner width prevents content squish during transition */}
         <div className="w-[380px] h-full overflow-y-auto">
