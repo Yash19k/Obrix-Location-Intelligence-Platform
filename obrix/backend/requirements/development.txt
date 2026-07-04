@@ -1,0 +1,10 @@
+-r base.txt
+
+# ── Development tools ────────────────────────────────────────────────────────
+ipython>=8.28,<9.0
+pytest>=8.3,<9.0
+pytest-django>=4.9,<5.0
+factory-boy>=3.3,<4.0
+
+# Note: django-debug-toolbar removed — incompatible with GeoDjango admin
+# without additional configuration. Re-add if needed.

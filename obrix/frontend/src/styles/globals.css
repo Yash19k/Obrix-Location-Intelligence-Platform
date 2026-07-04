@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global base styles ──────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    --scrollbar-thumb: #4f46e5;
+    --scrollbar-track: #0f172a;
+  }
+
+  * {
+    @apply border-white/10;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-surface-900 text-white font-sans antialiased;
+    background-image: radial-gradient(
+      ellipse 80% 80% at 50% -20%,
+      rgba(99, 102, 241, 0.15),
+      transparent
+    );
+    background-attachment: fixed;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6366f1;
+  }
+
+  /* Leaflet map — full-height mode (Analyze page) */
+  .leaflet-container {
+    z-index: 0 !important;
+    background: #0f172a;
+  }
+
+  /* Dark-theme Leaflet zoom controls */
+  .leaflet-control-zoom {
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-control-zoom a {
+    background: rgba(15, 23, 42, 0.9) !important;
+    color: rgba(255,255,255,0.8) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+    font-size: 18px !important;
+    line-height: 30px !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .leaflet-control-zoom a:last-child {
+    border-bottom: none !important;
+  }
+  .leaflet-control-zoom a:hover {
+    background: rgba(99,102,241,0.4) !important;
+    color: #fff !important;
+  }
+
+  /* Dark-theme attribution */
+  .leaflet-control-attribution {
+    background: rgba(15, 23, 42, 0.7) !important;
+    color: rgba(255,255,255,0.3) !important;
+    font-size: 10px !important;
+    border-radius: 8px 0 0 0 !important;
+  }
+  .leaflet-control-attribution a {
+    color: rgba(99,102,241,0.8) !important;
+  }
+
+  /* Dark-theme scale control */
+  .leaflet-control-scale-line {
+    background: rgba(15, 23, 42, 0.8) !important;
+    border-color: rgba(255,255,255,0.2) !important;
+    color: rgba(255,255,255,0.6) !important;
+    font-size: 10px !important;
+  }
+}
+
+/* ── Reusable component classes ──────────────────────────────────────────── */
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl shadow-card;
+  }
+
+  /* Gradient border effect */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(#0f172a, #0f172a) padding-box,
+      linear-gradient(135deg, #6366f1, #10b981) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Score tier badges */
+  .badge-excellent {
+    @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full;
+  }
+  .badge-good {
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full;
+  }
+  .badge-fair {
+    @apply bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full;
+  }
+  .badge-poor {
+    @apply bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full;
+  }
+
+  /* Sidebar nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           text-white/60 hover:text-white hover:bg-white/5
+           transition-all duration-200 cursor-pointer;
+  }
+  .nav-item-active {
+    @apply bg-brand-600/20 text-brand-400 border border-brand-500/20;
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
+           text-white placeholder-white/30 text-sm
+           focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
+           transition-all duration-200;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-brand-600 hover:bg-brand-500 active:bg-brand-700
+           text-white font-semibold text-sm px-5 py-2.5 rounded-xl
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+           shadow-glow hover:shadow-glow-lg focus:outline-none focus:ring-2
+           focus:ring-brand-500/50;
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           bg-white/5 hover:bg-white/10 border border-white/10
+           text-white/80 hover:text-white font-medium text-sm px-5 py-2.5 rounded-xl
+           transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/20;
+  }
+
+  /* Danger button */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           bg-red-600/20 hover:bg-red-600/30 border border-red-500/30
+           text-red-400 hover:text-red-300 font-medium text-sm px-5 py-2.5 rounded-xl
+           transition-all duration-200;
+  }
+
+  /* Section heading */
+  .section-title {
+    @apply text-2xl font-bold text-white tracking-tight;
+  }
+
+  /* Subtle divider */
+  .divider {
+    @apply border-t border-white/5 my-4;
+  }
+}
+
+/* ── Utility overrides ───────────────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-transparent;
+  }
+
+  .animate-enter {
+    @apply animate-fade-in;
+  }
+}

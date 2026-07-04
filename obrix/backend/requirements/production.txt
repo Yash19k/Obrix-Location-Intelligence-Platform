@@ -1,0 +1,14 @@
+-r base.txt
+
+# Production WSGI server
+gunicorn==23.0.0
+
+# Error monitoring
+sentry-sdk[django]==2.18.0
+
+# Static files
+whitenoise==6.8.2
+
+# AWS S3 for media (optional, for future use)
+boto3==1.35.57
+django-storages==1.14.4
