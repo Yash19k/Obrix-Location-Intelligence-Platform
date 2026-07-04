@@ -1,31 +1,46 @@
 """
-OSM Overpass API fetcher.
-Phase 5 will implement the real HTTP query logic.
+intelligence/osm/fetcher.py
+
+Backwards-compatible shim.
+
+Phase 3: Delegates to ``intelligence.geo.FeatureCollector``.
+Phase 5+: May be removed once all callers import FeatureCollector directly.
+
+The original Phase 4 stub returned a flat dict with placeholder lists.
+This shim preserves that interface so no existing code breaks while the
+rest of the backend is migrated to the new FeatureResult API.
 """
 
-import requests
 import logging
 
 logger = logging.getLogger(__name__)
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-
 
 def fetch_nearby_features(lat: float, lon: float, radius_m: int) -> dict:
     """
-    Query the Overpass API for geospatial features near the given point.
-    Returns normalized GeoJSON-compatible dict.
+    Query geospatial features near the given point.
 
-    Phase 4: Returns stub data.
-    Phase 5: Implements real Overpass query.
+    Returns a plain dict keyed by category, each value being a list of
+    feature dicts.  Empty lists are returned for any category with no hits
+    or when the backend call fails.
+
+    .. deprecated::
+        Import ``intelligence.geo.FeatureCollector`` directly for new code.
+        This function exists only for backward compatibility.
     """
-    # TODO Phase 5: Build Overpass QL query and make HTTP request
+    from intelligence.geo import FeatureCollector  # lazy import avoids circular deps
+
+    logger.debug(
+        "fetch_nearby_features shim called (lat=%.4f lon=%.4f r=%dm) — "
+        "delegating to FeatureCollector",
+        lat, lon, radius_m,
+    )
+
+    collector = FeatureCollector()
+    result    = collector.collect(lat=lat, lon=lon, radius_m=radius_m)
+
+    # Serialise GeoFeature objects to plain dicts to match the old interface
     return {
-        "stub": True,
-        "note": "Phase 5 will fetch real OSM data",
-        "roads": [],
-        "hospitals": [],
-        "schools": [],
-        "competitors": [],
-        "buildings": [],
+        category: [feature.to_dict() for feature in features]
+        for category, features in result.features.items()
     }
