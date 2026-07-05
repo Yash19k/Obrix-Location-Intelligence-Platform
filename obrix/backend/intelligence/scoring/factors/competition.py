@@ -1,34 +1,23 @@
 """
 intelligence/scoring/factors/competition.py
 
-Competition factor — business-type-specific competitive landscape scoring.
+Competition factor — Phase 3 Final.
 
-Unlike other factors, competition rules vary by business type.
-All rules are loaded from config.COMPETITION_RULES — no hardcoding here.
-
-Signal logic
-------------
-  Positive signal: a category that HELPS this business type (e.g. restaurants
-    nearby signal foot traffic for a retail store).
-  Negative signal: a category that HURTS this business type (e.g. many hospitals
-    nearby compete with a new hospital).
-
-Score formula
--------------
-  positive_bonus  = clamp(positive_count / positive_saturation, 0, 1) * (100 - baseline)
-  negative_penalty = clamp(negative_count / negative_saturation, 0, 1) * baseline
-  score = baseline + positive_bonus - negative_penalty
-  score = clamp(score, 10, 100)
+Changes from Phase 3.3:
+  - Tag-based competitor detection via CompetitionService (when enriched data available)
+  - Falls back to signal-based rules from config when only counts available
+  - Score clamped to [10, 100]
 """
 
 from __future__ import annotations
+
 from .base import AbstractFactor
-from ..types import FactorScore
-from ..config import get_competition_rules
+from intelligence.scoring.normalization import clamp
+from intelligence.scoring.config import get_competition_rules
 
 
 class CompetitionFactor(AbstractFactor):
-    """Scores a location's competitive environment for the given business type."""
+    """Scores competitive landscape for the given business type."""
 
     key = "competition"
 
@@ -37,59 +26,69 @@ class CompetitionFactor(AbstractFactor):
         self.business_type = business_type
 
     def compute(self) -> tuple[float, dict]:
-        rules  = get_competition_rules(self.business_type)
-        counts = self.osm_data
+        # ── Try tag-based competitor detection when enriched data available ───
+        competitor_data: dict = {}
+        if self._any_enriched():
+            try:
+                from intelligence.scoring.services.competition import CompetitionService
+                from intelligence.scoring.services.distance   import get_distance_service
+                features_by_cat = {
+                    cat: self._get_features(cat)
+                    for cat in self.osm_data
+                }
+                competitor_data = CompetitionService.detect(
+                    features_by_cat,
+                    self.business_type,
+                    self.lat, self.lon, self.radius_m,
+                    distance_service=get_distance_service(),
+                )
+            except Exception:
+                pass  # Gracefully fall back to rules-based scoring
 
-        baseline            = rules["baseline"]
-        pos_factor          = rules["positive_factor"]
-        neg_factor          = rules["negative_factor"]
-        pos_saturation      = rules["positive_saturation"] or 1
-        neg_saturation      = rules["negative_saturation"] or 1
+        # ── Rules-based scoring (always computed as baseline) ─────────────────
+        rules    = get_competition_rules(self.business_type)
+        baseline = rules["baseline"]
+        pos_cat  = rules["positive_factor"]
+        neg_cat  = rules["negative_factor"]
+        pos_sat  = rules["positive_saturation"] or 1
+        neg_sat  = rules["negative_saturation"] or 1
 
-        pos_count = int(counts.get(pos_factor, 0)) if pos_factor else 0
-        neg_count = int(counts.get(neg_factor, 0)) if neg_factor else 0
+        pos_count = self._get_weighted_count(pos_cat) if pos_cat else 0.0
+        neg_count = self._get_weighted_count(neg_cat) if neg_cat else 0.0
 
-        positive_bonus   = min(pos_count / pos_saturation, 1.0) * (100 - baseline) if pos_factor else 0
-        negative_penalty = min(neg_count / neg_saturation, 1.0) * baseline          if neg_factor else 0
+        positive_bonus   = (min(pos_count / pos_sat, 1.0) * (100 - baseline)) if pos_cat else 0.0
+        negative_penalty = (min(neg_count / neg_sat, 1.0) * baseline)          if neg_cat else 0.0
 
-        score = max(10, min(100, baseline + positive_bonus - negative_penalty))
+        score = float(baseline) + positive_bonus - negative_penalty
 
-        # Explanation
-        parts = []
-        if pos_factor and pos_count > 0:
-            parts.append(
-                f"{pos_count} {pos_factor.replace('_', ' ')} nearby "
-                "(positive demand signal)"
-            )
-        if neg_factor and neg_count > 0:
-            parts.append(
-                f"{neg_count} competing {neg_factor.replace('_', ' ')} "
-                "(market saturation risk)"
-            )
-        if not parts:
-            explanation = (
-                f"Competitive landscape is neutral for {self.business_type} — "
-                "insufficient OSM data for direct competitor analysis."
-            )
-        else:
-            explanation = ". ".join(parts) + "."
+        # If we have tag-based competitor data, adjust for direct competitors
+        if competitor_data:
+            wc = competitor_data.get("weighted_competitor_count", 0.0)
+            # Heavy direct competition → moderate penalty (up to -20)
+            competitor_penalty = min(wc * 5.0, 20.0)
+            score -= competitor_penalty
 
-        factor = FactorScore(
-            key="competition",
-            label="Competition",
-            score=round(score, 2),
-            explanation=explanation,
-            inputs={
-                "business_type":  self.business_type,
-                "positive_factor": pos_factor,
-                "positive_count":  pos_count,
-                "negative_factor": neg_factor,
-                "negative_count":  neg_count,
+        score = clamp(score, lo=10.0, hi=100.0)
+
+        raw = {
+            "key":   self.key,
+            "label": "Competition",
+            "score": round(score, 2),
+            "inputs": {
+                "business_type":   self.business_type,
+                "positive_factor": pos_cat,
+                "positive_count":  self._get_count(pos_cat) if pos_cat else 0,
+                "negative_factor": neg_cat,
+                "negative_count":  self._get_count(neg_cat) if neg_cat else 0,
             },
-            sub_scores={
-                "baseline":         float(baseline),
-                "positive_bonus":   round(positive_bonus,   2),
-                "negative_penalty": round(negative_penalty, 2),
+            "sub_scores": {
+                "baseline":          float(baseline),
+                "positive_bonus":    round(positive_bonus,   2),
+                "negative_penalty":  round(negative_penalty, 2),
+                "competitor_penalty": round(
+                    min(competitor_data.get("weighted_competitor_count", 0.0) * 5.0, 20.0), 2
+                ) if competitor_data else 0.0,
             },
-        )
-        return factor.score, factor.to_dict()
+            "competitor_metrics": competitor_data,
+        }
+        return score, raw

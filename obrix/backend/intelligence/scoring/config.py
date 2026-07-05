@@ -3,19 +3,12 @@ intelligence/scoring/config.py
 
 Single source of truth for all scoring thresholds and weight profiles.
 
-Design principles
------------------
-- NO hardcoded numbers outside this file.
-- All saturation thresholds are in FACTOR_THRESHOLDS.
-- All weights are in WEIGHT_PROFILES.
-- Changing a number here propagates everywhere automatically.
-
-Adding a new factor
--------------------
-1. Add thresholds to FACTOR_THRESHOLDS.
-2. Add weights to every entry in WEIGHT_PROFILES (or it defaults to 0).
-3. Implement the factor class in factors/.
-4. Register it in engine.py.
+Phase 3 Final additions
+-----------------------
+- DENSITY_THRESHOLDS: per-category saturation in features/km² (for log normalization)
+- DISTANCE_DECAY_RATE: controls how quickly distant features lose influence
+- Updated COMPETITION_RULES: now supports tag-based detection (see metrics.py)
+- All numerical constants are in this file; road weights live in metrics.ROAD_WEIGHTS.
 """
 
 from __future__ import annotations
@@ -27,7 +20,12 @@ from __future__ import annotations
 # Values were calibrated against a sample of 20 Indian cities at 1km radius.
 # Adjust RADIUS_REFERENCE_M if your typical radius differs significantly.
 
-RADIUS_REFERENCE_M: int = 1000  # thresholds calibrated for this radius
+RADIUS_REFERENCE_M: int = 1000
+
+# Decay rate for distance-weighting:
+# higher = features at the edge of the radius contribute much less.
+# At decay=3.0: d=0 → weight=1.0, d=radius/2 → weight=0.22, d=radius → weight=0.05
+DISTANCE_DECAY_RATE: float = 3.0
 
 FACTOR_THRESHOLDS: dict[str, dict] = {
 
@@ -227,3 +225,19 @@ def get_weight_profile(business_type: str) -> dict[str, float]:
 def get_competition_rules(business_type: str) -> dict:
     """Return competition rules for the given business type, falling back to _default."""
     return COMPETITION_RULES.get(business_type, COMPETITION_RULES["_default"])
+
+
+# ── Density saturation thresholds (features / km²) ───────────────────────────
+# At this density the density sub-score reaches 100 (via log normalization).
+# Calibrated for typical dense urban areas at 1km radius.
+
+DENSITY_THRESHOLDS: dict[str, float] = {
+    "roads":          80.0,    # 80 road segments / km²
+    "restaurants":    16.0,    # 16 restaurants / km²
+    "banks":           4.0,    # 4 banks / km²
+    "bus_stops":       3.0,    # 3 bus stops / km²
+    "hospitals":       1.0,    # 1 hospital / km²
+    "schools":         2.5,    # 2.5 schools / km²
+    "fuel_stations":   1.5,    # 1.5 fuel stations / km²
+    "parks":           1.5,    # 1.5 parks / km²
+}

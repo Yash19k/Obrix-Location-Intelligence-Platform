@@ -1,14 +1,16 @@
 /**
- * AnalysisPanel — right-side results panel (Phase 3.2).
+ * AnalysisPanel — right-side results panel (Phase 3 Final).
  *
- * Phase 3.2 additions:
- * - NearbyFeaturesGrid: real OSM feature counts from Overpass API
- * - LoadingSkeleton: shown while Overpass query runs (~7s)
- * - OsmErrorCard: shown when Overpass is unavailable
- * - Contextual insights driven by real counts
+ * Phase 3 Final additions:
+ * - IntelligenceMetricsCard: confidence, road quality, nearest distances,
+ *   density, competition metrics from distance-enriched scoring engine.
+ *
+ * Earlier additions:
+ * - NearbyFeaturesGrid: real OSM feature counts (Phase 3.2)
+ * - LoadingSkeleton: shown while Overpass query runs (Phase 3.2)
+ * - OsmErrorCard: shown when Overpass unavailable (Phase 3.2)
  *
  * Animation: parent (Analyze.jsx) expands panel width on showPanel || isAnalyzing.
- * This component fills whatever space the parent gives it.
  */
 
 import {
@@ -19,6 +21,7 @@ import useMapStore from '@/store/mapStore'
 import { FACTOR_META, BUSINESS_TYPES } from '@/constants'
 import ScoreRing from './ScoreRing'
 import FactorBar from './FactorBar'
+import IntelligenceMetricsCard from './IntelligenceMetricsCard'
 
 // ── Feature display metadata ────────────────────────────────────────────────
 const FEATURE_META = {
@@ -43,15 +46,15 @@ const DISPLAY_ORDER = [
 export default function AnalysisPanel() {
   const { analysisResult, isAnalyzing, closePanel } = useMapStore()
 
-  const result        = analysisResult?.result   ?? null
-  const score         = result?.site_readiness_score ?? 0
-  const breakdown     = result?.score_breakdown  ?? {}
-  const insights      = result?.ai_insights      ?? []
-  const recs          = result?.recommendations  ?? []
-  const featureCounts = result?.feature_counts   ?? {}
-  const osmMeta       = result?.osm_query_meta   ?? {}
-  const rawFactors    = result?.raw_factors       ?? {}
-  const osmError      = osmMeta.osm_error        ?? null
+  const result           = analysisResult?.result   ?? null
+  const score            = result?.site_readiness_score ?? 0
+  const breakdown        = result?.score_breakdown  ?? {}
+  const insights         = result?.ai_insights      ?? []
+  const recs             = result?.recommendations  ?? []
+  const featureCounts    = result?.feature_counts   ?? {}
+  const osmMeta          = result?.osm_query_meta   ?? {}
+  const rawFactors       = result?.raw_factors       ?? {}
+  const osmError         = osmMeta.osm_error        ?? null
   const bType = BUSINESS_TYPES.find((b) => b.value === analysisResult?.business_type)
 
   // Loading skeleton while Overpass query is in-flight
@@ -132,6 +135,14 @@ export default function AnalysisPanel() {
             : <NearbyFeaturesGrid counts={featureCounts} />
           }
         </div>
+
+        {/* ── Intelligence Metrics (Phase 3 Final) ───────────────────────── */}
+        {result && (
+          <div className="space-y-3">
+            <SectionDivider label="Intelligence Metrics" />
+            <IntelligenceMetricsCard result={result} />
+          </div>
+        )}
 
         {/* Factor breakdown */}
         {Object.keys(breakdown).length > 0 && (

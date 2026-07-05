@@ -1,8 +1,12 @@
-"""Serializers for the analysis app.
+"""Serializers for the analysis app — Phase 3 Final.
 
-Phase 3.2: AnalysisResultSerializer exposes feature_counts and feature_details
-as top-level read-only fields extracted from osm_data_snapshot.
-This keeps the API backwards-compatible — all existing fields are unchanged.
+Backward-compatible: all existing fields are unchanged.
+Phase 3 Final additions (read-only, extracted from raw_factors._meta):
+  - confidence        : {score, label, penalties}
+  - distance_metrics  : {category: {nearest_distance, avg_distance}}
+  - density_metrics   : {category: features/km²}
+  - road_hierarchy    : road type breakdown + quality score
+  - competition_metrics : competitor count + breakdown
 """
 
 from rest_framework import serializers
@@ -13,33 +17,26 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
     """
     Serialiser for AnalysisResult.
 
-    Phase 3.2 additions (read-only, extracted from osm_data_snapshot):
-      - feature_counts   : {roads: 84, hospitals: 2, ...}
-      - feature_details  : {roads: ["Inner Circle", ...], ...}
-      - osm_query_meta   : {source, query_time_ms, total_features, osm_error}
+    Phase 3.2 additions (from osm_data_snapshot):
+      feature_counts, feature_details, osm_query_meta
+
+    Phase 3 Final additions (from raw_factors._meta):
+      confidence, distance_metrics, density_metrics, road_hierarchy, competition_metrics
     """
 
-    # ── Derived fields from osm_data_snapshot ─────────────────────────────────
+    # ── From osm_data_snapshot ──────────────────────────────────────────────
 
-    feature_counts = serializers.SerializerMethodField()
+    feature_counts  = serializers.SerializerMethodField()
     feature_details = serializers.SerializerMethodField()
     osm_query_meta  = serializers.SerializerMethodField()
 
     def get_feature_counts(self, obj) -> dict:
-        """
-        Return per-category feature counts as a flat dict.
-        Returns {} if osm_data_snapshot is empty or OSM call failed.
-        """
         return obj.osm_data_snapshot.get("feature_counts", {})
 
     def get_feature_details(self, obj) -> dict:
-        """Return top named features per category (list of strings)."""
         return obj.osm_data_snapshot.get("feature_details", {})
 
     def get_osm_query_meta(self, obj) -> dict:
-        """
-        Return OSM collection metadata for debugging/transparency.
-        """
         snap = obj.osm_data_snapshot
         return {
             "source":         snap.get("source"),
@@ -48,6 +45,33 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
             "radius_m":       snap.get("radius_m"),
             "osm_error":      snap.get("osm_error"),
         }
+
+    # ── Phase 3 Final: from raw_factors._meta ─────────────────────────────
+
+    confidence         = serializers.SerializerMethodField()
+    distance_metrics   = serializers.SerializerMethodField()
+    density_metrics    = serializers.SerializerMethodField()
+    road_hierarchy     = serializers.SerializerMethodField()
+    competition_metrics = serializers.SerializerMethodField()
+
+    def _meta(self, obj) -> dict:
+        """Helper: extract _meta from raw_factors."""
+        return obj.raw_factors.get("_meta", {})
+
+    def get_confidence(self, obj) -> dict:
+        return self._meta(obj).get("confidence", {})
+
+    def get_distance_metrics(self, obj) -> dict:
+        return self._meta(obj).get("distance_metrics", {})
+
+    def get_density_metrics(self, obj) -> dict:
+        return self._meta(obj).get("density_metrics", {})
+
+    def get_road_hierarchy(self, obj) -> dict:
+        return self._meta(obj).get("road_hierarchy", {})
+
+    def get_competition_metrics(self, obj) -> dict:
+        return self._meta(obj).get("competition_metrics", {})
 
     class Meta:
         model  = AnalysisResult
@@ -61,10 +85,16 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
             "recommendations",
             "raw_factors",
             "created_at",
-            # Phase 3.2 additions
+            # Phase 3.2
             "feature_counts",
             "feature_details",
             "osm_query_meta",
+            # Phase 3 Final
+            "confidence",
+            "distance_metrics",
+            "density_metrics",
+            "road_hierarchy",
+            "competition_metrics",
         )
         read_only_fields = fields
 

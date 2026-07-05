@@ -1,74 +1,69 @@
 """
 intelligence/scoring/factors/commercial.py
 
-Commercial Activity factor — measures economic vitality of the area.
+Commercial Activity factor — Phase 3 Final.
 
-Inputs (from feature_counts)
------------------------------
-- restaurants: cafes, restaurants, fast food (proxy for foot traffic)
-- banks:       financial services (proxy for commercial zone maturity)
-
-High restaurant density signals daytime foot traffic and consumer spending.
-High bank density signals an established commercial zone.
+Changes from Phase 3.3:
+  - Density-aware scoring (restaurants/km² not raw count)
+  - Log normalization
+  - Distance-weighted counts
 """
 
 from __future__ import annotations
+
 from .base import AbstractFactor
-from ..types import FactorScore
-from ..config import FACTOR_THRESHOLDS
+from intelligence.scoring.normalization import log_normalize, clamp
+from intelligence.scoring.config import FACTOR_THRESHOLDS, DENSITY_THRESHOLDS
 
 
 class CommercialFactor(AbstractFactor):
-    """Scores a location based on dining density and financial services presence."""
+    """Scores location based on dining density and financial services presence."""
 
     key = "commercial"
 
     def compute(self) -> tuple[float, dict]:
-        cfg    = FACTOR_THRESHOLDS["commercial"]
-        counts = self.osm_data
+        cfg  = FACTOR_THRESHOLDS["commercial"]
+        dens = DENSITY_THRESHOLDS
 
-        restaurants = int(counts.get("restaurants", 0))
-        banks       = int(counts.get("banks",       0))
+        # Distance-weighted counts (falls back to raw count)
+        restaurants = self._get_weighted_count("restaurants")
+        banks       = self._get_weighted_count("banks")
 
-        rest_score = min(restaurants / cfg["restaurants_saturation"], 1.0) * 100
-        bank_score = min(banks       / cfg["banks_saturation"],       1.0) * 100
+        # Primary score: log-normalized against count saturation
+        rest_score = log_normalize(restaurants, cfg["restaurants_saturation"])
+        bank_score = log_normalize(banks,       cfg["banks_saturation"])
 
-        score = (
+        # Density bonus: if density data available, adjust upward slightly
+        rest_density = self._get_density("restaurants")
+        if rest_density > 0:
+            density_score = log_normalize(rest_density, dens.get("restaurants", 16.0))
+            # Blend: 75% count score + 25% density score
+            rest_score = 0.75 * rest_score + 0.25 * density_score
+
+        score = clamp(
             cfg["restaurants_weight"] * rest_score +
             cfg["banks_weight"]       * bank_score
         )
 
-        # Explanation
-        if score >= 80:
-            explanation = (
-                f"High commercial activity — {restaurants} dining venue(s) and "
-                f"{banks} bank(s)/ATM(s) indicate a thriving commercial zone."
-            )
-        elif score >= 55:
-            explanation = (
-                f"Moderate commercial activity — {restaurants} restaurant(s) "
-                f"and {banks} bank(s) indicate an established area."
-            )
-        elif score >= 25:
-            explanation = (
-                f"Developing commercial area — {restaurants} restaurant(s) "
-                f"and {banks} bank(s) within the search radius."
-            )
-        else:
-            explanation = (
-                f"Low commercial activity — only {restaurants} restaurant(s) "
-                f"and {banks} bank(s) detected."
-            )
-
-        factor = FactorScore(
-            key="commercial",
-            label="Commercial Activity",
-            score=round(score, 2),
-            explanation=explanation,
-            inputs={"restaurants": restaurants, "banks": banks},
-            sub_scores={
+        raw = {
+            "key":   self.key,
+            "label": "Commercial Activity",
+            "score": round(score, 2),
+            "inputs": {
+                "restaurants": self._get_count("restaurants"),
+                "banks":       self._get_count("banks"),
+            },
+            "sub_scores": {
                 "restaurants": round(rest_score, 2),
                 "banks":       round(bank_score, 2),
             },
-        )
-        return factor.score, factor.to_dict()
+            "nearest_distance": {
+                "restaurants": self._get_nearest_distance("restaurants"),
+                "banks":       self._get_nearest_distance("banks"),
+            },
+            "density": {
+                "restaurants": round(rest_density, 4),
+                "banks":       round(self._get_density("banks"), 4),
+            },
+        }
+        return score, raw
