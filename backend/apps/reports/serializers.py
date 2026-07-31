@@ -7,7 +7,11 @@ from .models import Report
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
-        fields = ("id", "title", "request_ids", "pdf_url", "created_at")
+        fields = (
+            "id", "title", "business_type", "latitude", "longitude",
+            "score", "analysis_json", "ai_report_json", "request_ids",
+            "pdf_url", "created_at",
+        )
         read_only_fields = ("id", "pdf_url", "created_at")
 
     def create(self, validated_data):

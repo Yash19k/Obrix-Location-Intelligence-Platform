@@ -60,6 +60,7 @@ class AnalysisViewSet(viewsets.ModelViewSet):
         analysis_request = serializer.save()
 
         self._run_analysis(analysis_request)
+        analysis_request.refresh_from_db()
 
         return Response(
             self.get_serializer(analysis_request).data,

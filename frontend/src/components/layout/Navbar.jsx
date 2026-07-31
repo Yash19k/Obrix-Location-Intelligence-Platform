@@ -28,7 +28,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="flex items-center justify-between px-6 py-3.5 border-b border-white/5 bg-surface-900/80 backdrop-blur-sm flex-shrink-0">
+    <header className="flex items-center justify-between px-6 py-3.5 border-b border-white/5 bg-surface-900/80 backdrop-blur-sm flex-shrink-0 relative z-[4000]">
       {/* Left: greeting */}
       <div>
         <p className="text-xs text-white/30 uppercase tracking-widest">Location Intelligence</p>
@@ -38,7 +38,7 @@ export default function Navbar() {
       </div>
 
       {/* Right: user avatar dropdown */}
-      <div className="relative">
+      <div className="relative z-[4500]">
         <button
           id="navbar-user-menu-btn"
           onClick={() => setMenuOpen((o) => !o)}
@@ -64,10 +64,10 @@ export default function Navbar() {
           <>
             {/* Backdrop */}
             <div
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-[4800]"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute right-0 top-full mt-2 w-48 glass-card py-1.5 z-50 animate-fade-in rounded-xl shadow-card">
+            <div className="absolute right-0 top-full mt-2 w-48 bg-[#0d1526] border border-white/10 py-1.5 z-[5000] rounded-xl shadow-2xl backdrop-blur-xl">
               <Link
                 to="/settings"
                 onClick={() => setMenuOpen(false)}

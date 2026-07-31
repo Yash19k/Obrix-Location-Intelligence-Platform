@@ -47,6 +47,7 @@ api_v1_patterns = [
     path("locations/", include("apps.locations.urls", namespace="locations")),
     path("analysis/", include("apps.analysis.urls", namespace="analysis")),
     path("reports/", include("apps.reports.urls", namespace="reports")),
+    path("ai/", include("apps.ai.urls", namespace="ai")),
 ]
 
 urlpatterns = [

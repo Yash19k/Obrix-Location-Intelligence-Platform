@@ -11,12 +11,12 @@
 | Frontend | React 18 + Vite + Tailwind CSS + Leaflet |
 | Backend | Django 4.2 + DRF + JWT |
 | Database | PostgreSQL 16 + PostGIS 3.4 |
-| AI/Data | GeoPandas, Shapely, Scikit-learn, XGBoost |
-| DevOps | Docker, GitHub Actions, Render, Vercel |
+| AI/Data | GeoPandas, Shapely, Scikit-learn|
+| DevOps |GitHub Actions|
 
 ---
 
-## Quick Start (Docker)
+## Quick Start 
 
 ### Prerequisites
 - Docker Desktop installed and running

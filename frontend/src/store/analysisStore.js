@@ -16,7 +16,11 @@ const useAnalysisStore = create((set, get) => ({
     set({ isSubmitting: true, error: null, currentRequest: null })
     try {
       const { data } = await analysisService.create(payload)
-      set({ currentRequest: data, isSubmitting: false })
+      set((state) => ({
+        requests: [data, ...state.requests],
+        currentRequest: data,
+        isSubmitting: false,
+      }))
       return { success: true, data }
     } catch (err) {
       const message = err.response?.data?.message || 'Analysis failed. Please try again.'

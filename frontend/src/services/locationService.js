@@ -1,9 +1,16 @@
+/** Location service — wraps all saved location API calls. */
+
 import apiClient from './apiClient'
 
 const locationService = {
-  list: () => apiClient.get('/api/v1/locations/'),
-  create: (payload) => apiClient.post('/api/v1/locations/', payload),
-  delete: (id) => apiClient.delete(`/api/v1/locations/${id}/`),
+  /** GET /locations/ — list user's saved locations */
+  list: () => apiClient.get('/locations/'),
+
+  /** POST /locations/ — save a new location */
+  create: (payload) => apiClient.post('/locations/', payload),
+
+  /** DELETE /locations/{id}/ — delete a saved location */
+  delete: (id) => apiClient.delete(`/locations/${id}/`),
 }
 
 export default locationService

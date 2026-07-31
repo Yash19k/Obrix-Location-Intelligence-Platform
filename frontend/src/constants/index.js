@@ -42,10 +42,14 @@ export const SCORE_TIERS = {
   POOR:      { min: 0,  label: 'Poor',      className: 'badge-poor',      color: '#f87171' },
 }
 
-// Map defaults — centered on India for demo
-export const DEFAULT_MAP_CENTER = [20.5937, 78.9629]
-export const DEFAULT_MAP_ZOOM = 5
-export const ANALYSIS_MAP_ZOOM = 13
+// Map defaults — centered on Ahmedabad
+export const DEFAULT_MAP_CENTER = [23.0225, 72.5714]
+export const DEFAULT_MAP_ZOOM = 13
+export const ANALYSIS_MAP_ZOOM = 15
+export const AHMEDABAD_BOUNDS = [
+  [22.80, 72.35], // South-West corner
+  [23.25, 72.80], // North-East corner
+]
 
 // Factor display config — keys must match intelligence/scoring/engine.py factor keys
 export const FACTOR_META = {

@@ -1,42 +1,73 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bookmark, MapPin, Eye, ArrowLeftRight, Trash2, Calendar, Sparkles, Building2 } from 'lucide-react'
+import { Bookmark, MapPin, Eye, ArrowLeftRight, Trash2, Calendar, Sparkles, Building2, Award, ShieldCheck } from 'lucide-react'
 import useLocationStore from '@/store/locationStore'
 import useMapStore from '@/store/mapStore'
+import useAnalysisStore from '@/store/analysisStore'
 import Spinner from '@/components/ui/Spinner'
+import LocationComparisonModal from '@/components/analysis/LocationComparisonModal'
 
 export default function SavedLocations() {
   const navigate = useNavigate()
   const { savedLocations, fetchLocations, deleteLocation, isLoading, openComparison } = useLocationStore()
-  const { selectCoordinates, setMapCenter, setBusinessType } = useMapStore()
+  const { selectCoordinates, setMapCenter, setBusinessType, setIsAnalyzing, setAnalysisResult, openPanel } = useMapStore()
+  const { submitAnalysis } = useAnalysisStore()
+
+  const [activeComparison, setActiveComparison] = useState(null)
 
   useEffect(() => {
     fetchLocations()
   }, [])
 
-  const handleViewLocation = (loc) => {
-    const lat = parseFloat(loc.latitude)
-    const lon = parseFloat(loc.longitude)
-    selectCoordinates(lat, lon)
-    setMapCenter([lat, lon], 14)
-    navigate('/analyze')
+  const parseDescription = (descStr) => {
+    if (!descStr) return {}
+    try {
+      if (descStr.startsWith('{')) {
+        return JSON.parse(descStr)
+      }
+    } catch {
+      // ignore
+    }
+    return { text: descStr }
   }
 
-  const handleCompareLocation = (loc) => {
+  const handleViewLocation = async (loc) => {
     const lat = parseFloat(loc.latitude)
     const lon = parseFloat(loc.longitude)
-    const secondaryResult = {
-      latitude: lat,
-      longitude: lon,
-      business_type: loc.name?.toLowerCase().includes('retail') ? 'retail' : 'hospital',
-      result: {
-        site_readiness_score: 65,
-        feature_counts: { roads: 12, hospitals: 1, schools: 3, restaurants: 8, parks: 2 },
-        competition_metrics: { competitor_count: 3, competition_level: 'Medium' },
-        road_hierarchy: { road_quality_label: 'Good' },
-      },
+    const meta = parseDescription(loc.description)
+
+    if (meta.type === 'comparison' || meta.primaryResult) {
+      setActiveComparison({
+        primaryResult: meta.primaryResult,
+        secondaryResult: meta.secondaryResult,
+      })
+      return
     }
-    openComparison(secondaryResult)
+
+    // Single analysis restore
+    if (meta.business_type) {
+      setBusinessType(meta.business_type)
+    }
+    selectCoordinates(lat, lon)
+    setMapCenter([lat, lon], 16)
+
+    if (meta.analysisResult) {
+      setAnalysisResult(meta.analysisResult)
+    } else {
+      setIsAnalyzing(true)
+      navigate('/analyze')
+      const res = await submitAnalysis({
+        latitude: lat,
+        longitude: lon,
+        radius_m: meta.radius_m || 1000,
+        business_type: meta.business_type || 'retail',
+      })
+      if (res.success) {
+        setAnalysisResult(res.data)
+      }
+      return
+    }
+
     navigate('/analyze')
   }
 
@@ -49,10 +80,10 @@ export default function SavedLocations() {
             <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
               <Bookmark className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold text-slate-100">Saved Locations</h1>
+            <h1 className="text-xl font-bold text-slate-100">Saved Locations & Comparisons</h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Access and manage your bookmarked site analysis locations
+            Access and restore your bookmarked site analyses and side-by-side comparison dashboards
           </p>
         </div>
 
@@ -77,7 +108,7 @@ export default function SavedLocations() {
           </div>
           <h3 className="text-sm font-semibold text-slate-200">No Saved Locations Yet</h3>
           <p className="text-xs text-slate-400 max-w-md">
-            When analyzing sites on the map, click "Save Analysis" to bookmark them here for quick access and comparison.
+            When analyzing sites on the map, click "Save Analysis" or "Save Comparison" to bookmark them here for instant restoration.
           </p>
           <button
             onClick={() => navigate('/analyze')}
@@ -92,33 +123,69 @@ export default function SavedLocations() {
             const lat = parseFloat(loc.latitude).toFixed(4)
             const lon = parseFloat(loc.longitude).toFixed(4)
             const dateStr = loc.created_at ? new Date(loc.created_at).toLocaleDateString() : 'Recent'
+            const meta = parseDescription(loc.description)
+
+            const isComparison = meta.type === 'comparison' || !!meta.primaryResult
+            const readinessScore = meta.recScore || meta.readiness_score || meta.score || null
+            const confidence = meta.confidence || '98'
+            const bTypeLabel = isComparison
+              ? 'SITE COMPARISON'
+              : meta.business_type ? meta.business_type.toUpperCase() : 'SITE ANALYSIS'
 
             return (
               <div
                 key={loc.id}
-                className="group p-5 rounded-2xl bg-slate-900/60 border border-white/10 hover:border-indigo-500/40 hover:bg-slate-900/90 transition-all flex flex-col justify-between space-y-4 shadow-lg"
+                onClick={() => handleViewLocation(loc)}
+                className="group p-5 rounded-2xl bg-slate-900/60 border border-white/10 hover:border-indigo-500/40 hover:bg-slate-900/90 cursor-pointer transition-all flex flex-col justify-between space-y-4 shadow-lg"
               >
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
-                        <Building2 className="w-4 h-4" />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isComparison
+                          ? 'bg-purple-500/10 border border-purple-500/20 text-purple-400'
+                          : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
+                      }`}>
+                        {isComparison ? <ArrowLeftRight className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
                       </div>
-                      <h3 className="text-sm font-bold text-slate-100 truncate">{loc.name}</h3>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-slate-100 truncate">{loc.name}</h3>
+                        <span className={`text-[10px] font-semibold tracking-wider ${
+                          isComparison ? 'text-purple-400' : 'text-indigo-400'
+                        }`}>
+                          {bTypeLabel}
+                        </span>
+                      </div>
                     </div>
+
+                    {readinessScore && (
+                      <div className="flex flex-col items-end">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                          <Award className="w-3 h-3" /> {readinessScore}/100
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {loc.description && (
-                    <p className="text-xs text-slate-300 font-medium">{loc.description}</p>
+                  {loc.address && !meta.text && (
+                    <p className="text-xs text-slate-300 font-medium">{loc.address}</p>
                   )}
 
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <span className="flex items-center gap-1 font-mono">
+                  {meta.text && (
+                    <p className="text-xs text-slate-300 font-medium">{meta.text}</p>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
                       <MapPin className="w-3.5 h-3.5 text-indigo-400" />
                       {lat}, {lon}
                     </span>
-                    <span className="flex items-center gap-1 text-[11px]">
-                      <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="flex items-center gap-1 text-[11px] text-emerald-400">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      {confidence}% Confidence
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                      <Calendar className="w-3 h-3" />
                       {dateStr}
                     </span>
                   </div>
@@ -128,21 +195,15 @@ export default function SavedLocations() {
                 <div className="pt-3 border-t border-white/5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleViewLocation(loc)}
+                      onClick={(e) => { e.stopPropagation(); handleViewLocation(loc); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition-all"
                     >
-                      <Eye className="w-3.5 h-3.5" /> View
-                    </button>
-                    <button
-                      onClick={() => handleCompareLocation(loc)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 transition-all"
-                    >
-                      <ArrowLeftRight className="w-3.5 h-3.5" /> Compare
+                      <Eye className="w-3.5 h-3.5" /> Restore View
                     </button>
                   </div>
 
                   <button
-                    onClick={() => deleteLocation(loc.id)}
+                    onClick={(e) => { e.stopPropagation(); deleteLocation(loc.id); }}
                     title="Delete Saved Location"
                     className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                   >
@@ -153,6 +214,16 @@ export default function SavedLocations() {
             )
           })}
         </div>
+      )}
+
+      {/* Restored Comparison Dashboard Modal */}
+      {activeComparison && (
+        <LocationComparisonModal
+          isOpen={!!activeComparison}
+          onClose={() => setActiveComparison(null)}
+          primaryResult={activeComparison.primaryResult}
+          secondaryResult={activeComparison.secondaryResult}
+        />
       )}
     </div>
   )

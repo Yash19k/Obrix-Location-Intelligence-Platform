@@ -104,20 +104,117 @@ export default function LocationComparisonModal({ isOpen, onClose, primaryResult
     const latB = parseFloat(secondaryResult.latitude || 23.0300).toFixed(3)
     const lonB = parseFloat(secondaryResult.longitude || 72.5800).toFixed(3)
 
-    await saveLocation({
-      name: `Compared Sites (${latA}, ${lonA} vs ${latB}, ${lonB})`,
-      description: `Comparison winner: ${recommendedLoc} (${recScore}/100)`,
-      latitude: parseFloat(primaryResult.latitude || 23.0225),
-      longitude: parseFloat(primaryResult.longitude || 72.5714),
+    const payloadMeta = JSON.stringify({
+      type: 'comparison',
+      recommendedLoc,
+      recScore,
+      primaryResult,
+      secondaryResult,
     })
 
-    setSavedSuccess(true)
-    setTimeout(() => setSavedSuccess(false), 3000)
+    const res = await saveLocation({
+      name: `Compared Sites (${latA}, ${lonA} vs ${latB}, ${lonB})`,
+      description: payloadMeta,
+      latitude: parseFloat(primaryResult.latitude || 23.0225),
+      longitude: parseFloat(primaryResult.longitude || 72.5714),
+      address: `Comparison Winner: ${recommendedLoc} (${recScore}/100)`,
+    })
+
+    if (res.success) {
+      setSavedSuccess(true)
+      setToastMsg('✓ Comparison saved successfully!')
+      setTimeout(() => setSavedSuccess(false), 3000)
+      setTimeout(() => setToastMsg(null), 3500)
+    }
   }
 
   const handleExport = () => {
-    setToastMsg('PDF/CSV Report Export generated (Demo placeholder)!')
-    setTimeout(() => setToastMsg(null), 3500)
+    const reportHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Obrix Location Comparison Report</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; margin: 0; }
+          .header { border-bottom: 2px solid #6366f1; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+          .title { font-size: 24px; font-weight: bold; color: #818cf8; }
+          .subtitle { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+          .date { font-size: 12px; color: #64748b; font-family: monospace; }
+          .rec-box { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+          .rec-title { font-size: 16px; font-weight: bold; color: #34d399; }
+          .rec-desc { font-size: 13px; color: #cbd5e1; margin-top: 6px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+          .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
+          .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #818cf8; font-weight: bold; }
+          .card-value { font-size: 16px; font-weight: bold; margin-top: 4px; color: #f1f5f9; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; background: #1e293b; border-radius: 12px; overflow: hidden; }
+          th { background: #334155; text-align: left; padding: 12px 16px; font-size: 12px; color: #94a3b8; }
+          td { padding: 12px 16px; font-size: 13px; border-top: 1px solid #334155; }
+          .winner { color: #34d399; font-weight: bold; background: rgba(16, 185, 129, 0.1); }
+          .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #334155; padding-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">Obrix Location Intelligence</div>
+            <div class="subtitle">Site Comparison & Feasibility Evaluation Report</div>
+          </div>
+          <div class="date">Generated: ${new Date().toLocaleString()}</div>
+        </div>
+
+        <div class="rec-box">
+          <div class="rec-title">🏆 Recommendation: ${recommendedLoc} is Recommended (${recScore}/100)</div>
+          <div class="rec-desc">This site demonstrates superior readiness score (${recScore} vs ${otherScore}), lower competitive pressure, and optimal road network accessibility.</div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-title">Location A (Primary)</div>
+            <div class="card-value">${primaryResult.business_type ? primaryResult.business_type.toUpperCase() : 'SITE A'}</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-family: monospace;">${parseFloat(primaryResult.latitude || 23.0225).toFixed(4)}, ${parseFloat(primaryResult.longitude || 72.5714).toFixed(4)}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Location B (Compared)</div>
+            <div class="card-value">${secondaryResult.business_type ? secondaryResult.business_type.toUpperCase() : 'SITE B'}</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-family: monospace;">${parseFloat(secondaryResult.latitude || 23.0300).toFixed(4)}, ${parseFloat(secondaryResult.longitude || 72.5800).toFixed(4)}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Metric Evaluated</th>
+              <th style="text-align: center;">Location A</th>
+              <th style="text-align: center;">Location B</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${metrics.map(m => `
+              <tr>
+                <td><strong>${m.label}</strong></td>
+                <td style="text-align: center;" class="${m.winner === 'primary' ? 'winner' : ''}">${m.pVal}</td>
+                <td style="text-align: center;" class="${m.winner === 'secondary' ? 'winner' : ''}">${m.sVal}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Obrix Location Intelligence Engine v0.1.0 &bull; Proprietary & Confidential Spatial Analysis
+        </div>
+      </body>
+      </html>
+    `
+
+    const printWin = window.open('', '_blank')
+    if (printWin) {
+      printWin.document.write(reportHtml)
+      printWin.document.close()
+      setTimeout(() => {
+        printWin.print()
+      }, 500)
+    }
   }
 
   return (
@@ -266,7 +363,7 @@ export default function LocationComparisonModal({ isOpen, onClose, primaryResult
               onClick={handleExport}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-all"
             >
-              <Download className="w-4 h-4 text-purple-400" /> Export PDF/CSV
+              <Download className="w-4 h-4 text-purple-400" /> Export PDF
             </button>
           </div>
 

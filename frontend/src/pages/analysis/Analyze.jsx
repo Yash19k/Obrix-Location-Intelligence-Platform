@@ -103,12 +103,12 @@ export default function Analyze() {
 
         {/* Hint — shown until first marker is placed */}
         {!compareMode && selectedLat === null && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[2500] pointer-events-none">
             <div className="flex items-center gap-2.5 px-4 py-2.5
-                            bg-[#0d1526]/90 backdrop-blur border border-white/10
-                            rounded-full shadow-lg whitespace-nowrap">
-              <MousePointerClick className="w-4 h-4 text-brand-400 flex-shrink-0" />
-              <span className="text-xs text-white/60 font-medium">
+                            bg-[#0d1526]/95 backdrop-blur-md border border-indigo-500/30
+                            rounded-full shadow-2xl whitespace-nowrap">
+              <MousePointerClick className="w-4 h-4 text-indigo-400 flex-shrink-0 animate-bounce" />
+              <span className="text-xs text-slate-200 font-semibold tracking-wide">
                 Click anywhere on the map to place a marker
               </span>
             </div>

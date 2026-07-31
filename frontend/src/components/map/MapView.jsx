@@ -16,15 +16,13 @@ import {
   useMap,
 } from 'react-leaflet'
 import useMapStore from '@/store/mapStore'
-import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/constants'
+import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, AHMEDABAD_BOUNDS } from '@/constants'
 import MarkerLayer from './MarkerLayer'
 import FeatureMarkerLayer from './FeatureMarkerLayer'
 
 // ── MapEventBridge ────────────────────────────────────────────────────────────
 // Watches mapStore.mapCenter and calls map.flyTo() — bridges external state
 // (search results, locate-me) to the internal Leaflet map instance.
-
-let _prevCenter = null
 
 function MapEventBridge() {
   const map = useMap()
@@ -33,13 +31,14 @@ function MapEventBridge() {
   useEffect(() => {
     if (!mapCenter) return
     const [lat, lng] = mapCenter
-    if (_prevCenter && _prevCenter[0] === lat && _prevCenter[1] === lng) return
-    _prevCenter = mapCenter
-    map.flyTo([lat, lng], mapZoom ?? map.getZoom(), {
-      duration: 1.2,
-      easeLinearity: 0.5,
+    const targetZoom = mapZoom || 16
+
+    map.flyTo([lat, lng], targetZoom, {
+      duration: 1.0,
+      easeLinearity: 0.25,
+      noMoveStart: true,
     })
-  }, [mapCenter, mapZoom])
+  }, [mapCenter, mapZoom, map])
 
   return null
 }
@@ -110,6 +109,9 @@ export default function MapView() {
       <MapContainer
         center={DEFAULT_MAP_CENTER}
         zoom={DEFAULT_MAP_ZOOM}
+        minZoom={11}
+        maxBounds={AHMEDABAD_BOUNDS}
+        maxBoundsViscosity={1.0}
         className="h-full w-full bg-[#0b1120]"
         style={{ backgroundColor: '#0b1120' }}
         zoomControl={false}

@@ -26,6 +26,9 @@ import FactorBar from './FactorBar'
 import IntelligenceMetricsCard from './IntelligenceMetricsCard'
 import CompetitorAnalysisCard from './CompetitorAnalysisCard'
 import LocationComparisonModal from './LocationComparisonModal'
+import AiInsightsCard from './AiInsightsCard'
+import ReportViewerModal from '../reports/ReportViewerModal'
+import useReportStore from '@/store/reportStore'
 
 // ── Feature display metadata ────────────────────────────────────────────────
 const FEATURE_META = {
@@ -50,8 +53,11 @@ const DISPLAY_ORDER = [
 export default function AnalysisPanel() {
   const { analysisResult, isAnalyzing, closePanel } = useMapStore()
   const { saveLocation, isSaving, savedLocations, isComparisonOpen, secondaryResult, openComparison, closeComparison } = useLocationStore()
+  const { activeReport, closeReportViewer } = useReportStore()
 
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const [toastMessage, setToastMessage] = useState(null)
+  const [toastType, setToastType] = useState('success')
 
   const result           = analysisResult?.result   ?? null
   const score            = result?.site_readiness_score ?? 0
@@ -66,22 +72,47 @@ export default function AnalysisPanel() {
 
   const handleBookmark = async () => {
     if (!analysisResult) return
-    const lat = parseFloat(analysisResult.latitude)
-    const lon = parseFloat(analysisResult.longitude)
+    const lat = parseFloat(analysisResult.latitude ?? selectedLat)
+    const lon = parseFloat(analysisResult.longitude ?? selectedLon)
+
+    if (isNaN(lat) || isNaN(lon)) {
+      setToastType('error')
+      setToastMessage('Invalid location coordinates')
+      setTimeout(() => setToastMessage(null), 4000)
+      return
+    }
+
     const bLabel = bType ? bType.label : 'Analysis Site'
     const name = `${bLabel} (${lat.toFixed(3)}, ${lon.toFixed(3)})`
     
+    const confidenceScore = rawFactors?._meta?.confidence?.score || 95
+    const metaPayload = JSON.stringify({
+      type: 'single',
+      business_type: analysisResult.business_type || 'retail',
+      readiness_score: score.toFixed(1),
+      confidence: Math.round(confidenceScore),
+      radius_m: analysisResult.radius_m || 1000,
+      analysisResult: analysisResult,
+    })
+
     const res = await saveLocation({
       name,
-      description: `Analyzed site readiness score: ${score.toFixed(1)}/100`,
+      description: metaPayload,
       latitude: lat,
       longitude: lon,
-      address: `Radius ${analysisResult.radius}m`,
+      address: `${bLabel} near ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
     })
 
     if (res.success) {
       setSavedSuccess(true)
+      setToastType('success')
+      setToastMessage('✓ Location saved successfully')
       setTimeout(() => setSavedSuccess(false), 3000)
+      setTimeout(() => setToastMessage(null), 3500)
+    } else {
+      setToastType('error')
+      setToastMessage(res.error || 'Failed to save location.')
+      setTimeout(() => setToastMessage(null), 4000)
     }
   }
 
@@ -93,6 +124,14 @@ export default function AnalysisPanel() {
 
   return (
     <div className="flex flex-col h-full min-h-0 relative">
+
+      {toastMessage && (
+        <div className={`absolute top-2 left-5 right-5 z-50 px-3.5 py-2 rounded-xl text-xs font-semibold text-white shadow-2xl flex items-center gap-2 animate-bounce ${
+          toastType === 'error' ? 'bg-rose-600 border border-rose-400' : 'bg-emerald-600 border border-emerald-400'
+        }`}>
+          <Check className="w-4 h-4" /> {toastMessage}
+        </div>
+      )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4
@@ -297,6 +336,13 @@ export default function AnalysisPanel() {
             ))}
           </div>
         )}
+        {/* AI Insights Card */}
+        {result && (
+          <div className="space-y-3 mt-4">
+            <SectionDivider label="AI Intelligence" />
+            <AiInsightsCard analysisResult={analysisResult} />
+          </div>
+        )}
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
@@ -319,6 +365,15 @@ export default function AnalysisPanel() {
         primaryResult={analysisResult}
         secondaryResult={secondaryResult}
       />
+
+      {/* AI Consulting Report Viewer */}
+      {activeReport && (
+        <ReportViewerModal
+          isOpen={!!activeReport}
+          onClose={closeReportViewer}
+          report={activeReport}
+        />
+      )}
     </div>
   )
 }

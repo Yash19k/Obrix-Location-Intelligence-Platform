@@ -34,7 +34,7 @@ environ.Env.read_env(BASE_DIR / ".env")
 # ---------------------------------------------------------------------------
 SECRET_KEY = env("SECRET_KEY", default="dev-secret-key-replace-in-production")
 DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "testserver"]
 
 # ---------------------------------------------------------------------------
 # Application definition — includes django.contrib.gis for PostGIS

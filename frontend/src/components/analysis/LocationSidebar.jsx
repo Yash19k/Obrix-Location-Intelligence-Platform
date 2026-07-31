@@ -52,6 +52,7 @@ export default function LocationSidebar() {
   const handleAnalyze = async () => {
     if (!hasLocation) return
     setIsAnalyzing(true)
+    setMapCenter([selectedLat, selectedLon], 16)
     const result = await submitAnalysis({
       latitude:      selectedLat,
       longitude:     selectedLon,
