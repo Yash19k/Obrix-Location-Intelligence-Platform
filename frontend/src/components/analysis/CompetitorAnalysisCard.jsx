@@ -1,10 +1,10 @@
-import { Users, MapPin, Compass, AlertCircle } from 'lucide-react'
+import { Users, MapPin } from 'lucide-react'
 
 export default function CompetitorAnalysisCard({ result }) {
   const compMeta = result?.competition_metrics || {}
   const competitors = compMeta.competitors || []
 
-  if (compMeta.competitor_count == null && competitors.length === 0) {
+  if (compMeta.competitor_count == null) {
     return null
   }
 
@@ -35,41 +35,10 @@ export default function CompetitorAnalysisCard({ result }) {
         </span>
       </div>
 
-      {/* Grid Summary */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="bg-slate-900/60 border border-white/[0.05] p-2.5 rounded-lg">
-          <span className="text-[10px] text-slate-400 block">Total Competitors</span>
-          <span className="text-base font-bold text-slate-100">{compMeta.competitor_count ?? 0}</span>
-        </div>
-
-        <div className="bg-slate-900/60 border border-white/[0.05] p-2.5 rounded-lg">
-          <span className="text-[10px] text-slate-400 block">Competition Density</span>
-          <span className="text-base font-bold text-slate-100">
-            {compMeta.competition_density != null ? `${compMeta.competition_density}/km²` : '—'}
-          </span>
-        </div>
-
-        <div className="bg-slate-900/60 border border-white/[0.05] p-2.5 rounded-lg">
-          <span className="text-[10px] text-slate-400 block">Nearest Competitor</span>
-          <span className="text-sm font-semibold text-slate-200">
-            {compMeta.nearest_distance_m != null
-              ? compMeta.nearest_distance_m < 1000
-                ? `${Math.round(compMeta.nearest_distance_m)}m`
-                : `${(compMeta.nearest_distance_m / 1000).toFixed(1)}km`
-              : '—'}
-          </span>
-        </div>
-
-        <div className="bg-slate-900/60 border border-white/[0.05] p-2.5 rounded-lg">
-          <span className="text-[10px] text-slate-400 block">Avg Distance</span>
-          <span className="text-sm font-semibold text-slate-200">
-            {compMeta.avg_distance_m != null
-              ? compMeta.avg_distance_m < 1000
-                ? `${Math.round(compMeta.avg_distance_m)}m`
-                : `${(compMeta.avg_distance_m / 1000).toFixed(1)}km`
-              : '—'}
-          </span>
-        </div>
+      {/* Summary Row */}
+      <div className="bg-slate-900/60 border border-white/[0.05] p-3 rounded-lg flex items-center justify-between">
+        <span className="text-[11px] text-slate-400 font-medium">Total Competitors</span>
+        <span className="text-base font-bold text-slate-100">{compMeta.competitor_count ?? 0}</span>
       </div>
 
       {/* Competitors List */}

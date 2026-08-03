@@ -18,7 +18,6 @@ import {
 import useMapStore from '@/store/mapStore'
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, AHMEDABAD_BOUNDS } from '@/constants'
 import MarkerLayer from './MarkerLayer'
-import FeatureMarkerLayer from './FeatureMarkerLayer'
 
 // ── MapEventBridge ────────────────────────────────────────────────────────────
 // Watches mapStore.mapCenter and calls map.flyTo() — bridges external state
@@ -109,9 +108,7 @@ export default function MapView() {
       <MapContainer
         center={DEFAULT_MAP_CENTER}
         zoom={DEFAULT_MAP_ZOOM}
-        minZoom={11}
-        maxBounds={AHMEDABAD_BOUNDS}
-        maxBoundsViscosity={1.0}
+        minZoom={3}
         className="h-full w-full bg-[#0b1120]"
         style={{ backgroundColor: '#0b1120' }}
         zoomControl={false}
@@ -129,7 +126,6 @@ export default function MapView() {
         <ZoomControl position="bottomright" />
         <ScaleControl position="bottomright" imperial={false} />
         <MarkerLayer />
-        <FeatureMarkerLayer />
         <MapEventBridge />
         <MapResizeBridge />
       </MapContainer>

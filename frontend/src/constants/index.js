@@ -13,17 +13,10 @@ export const USER_KEY = 'obrix_user'
 
 // Analysis
 export const BUSINESS_TYPES = [
-  { value: 'retail',    label: 'Retail Store',            icon: '🏪' },
-  { value: 'cafe',      label: 'Cafe / Coffee Shop',      icon: '☕' },
-  { value: 'restaurant',label: 'Restaurant / Dining',     icon: '🍽️' },
-  { value: 'pharmacy',  label: 'Pharmacy / Chemist',      icon: '💊' },
-  { value: 'bank',      label: 'Bank / Financial',        icon: '🏦' },
-  { value: 'hospital',  label: 'Hospital / Clinic',       icon: '🏥' },
-  { value: 'ev_station',label: 'EV Charging Station',     icon: '⚡' },
-  { value: 'warehouse', label: 'Warehouse / Logistics',   icon: '🏭' },
-  { value: 'telecom',   label: 'Telecom Tower',           icon: '📡' },
-  { value: 'renewable', label: 'Renewable Energy Project',icon: '🌱' },
-  { value: 'generic',   label: 'Generic Location',        icon: '📍' },
+  { value: 'pharmacy',   label: 'Pharmacy / Medical Store',  icon: '🏥' },
+  { value: 'stationery', label: 'Stationery / Book Store',  icon: '📚' },
+  { value: 'cafe',       label: 'Cafe / Restaurant',        icon: '☕' },
+  { value: 'grocery',    label: 'Grocery / Supermarket',    icon: '🛒' },
 ]
 
 export const RADIUS_OPTIONS = [
@@ -58,4 +51,5 @@ export const FACTOR_META = {
   commercial:    { label: 'Commercial Activity',     icon: '🛍️', description: 'Dining & financial services density' },
   competition:   { label: 'Competition',             icon: '🏪',  description: 'Market saturation for this business type' },
   environment:   { label: 'Environmental Suitability', icon: '🌿', description: 'Green space & environmental factors' },
+  population:    { label: 'Population & Catchment',  icon: '👥',  description: 'Residential and target demographics density' },
 }

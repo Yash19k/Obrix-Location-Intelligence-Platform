@@ -20,13 +20,10 @@ class AnalysisRequest(models.Model):
         FAILED = "failed", "Failed"
 
     class BusinessType(models.TextChoices):
-        RETAIL = "retail", "Retail Store"
-        HOSPITAL = "hospital", "Hospital / Clinic"
-        EV_STATION = "ev_station", "EV Charging Station"
-        WAREHOUSE = "warehouse", "Warehouse / Logistics"
-        TELECOM = "telecom", "Telecom Tower"
-        RENEWABLE = "renewable", "Renewable Energy Project"
-        GENERIC = "generic", "Generic"
+        PHARMACY = "pharmacy", "Pharmacy / Medical Store"
+        STATIONERY = "stationery", "Stationery / Book Store"
+        CAFE = "cafe", "Cafe / Restaurant"
+        GROCERY = "grocery", "Grocery / Supermarket"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -43,7 +40,7 @@ class AnalysisRequest(models.Model):
     longitude = models.DecimalField(max_digits=10, decimal_places=7)
     radius_m = models.IntegerField(default=1000, help_text="Analysis radius in meters")
     business_type = models.CharField(
-        max_length=100, choices=BusinessType.choices, default=BusinessType.GENERIC
+        max_length=100, choices=BusinessType.choices, default=BusinessType.PHARMACY
     )
     status = models.CharField(
         max_length=50, choices=Status.choices, default=Status.PENDING

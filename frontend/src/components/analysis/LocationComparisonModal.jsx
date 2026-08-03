@@ -24,9 +24,6 @@ export default function LocationComparisonModal({ isOpen, onClose, primaryResult
   const pRoad = pRes.raw_factors?._meta?.road_hierarchy || pRes.road_hierarchy || {}
   const sRoad = sRes.raw_factors?._meta?.road_hierarchy || sRes.road_hierarchy || {}
 
-  const pConf = pRes.raw_factors?._meta?.confidence || pRes.confidence || {}
-  const sConf = sRes.raw_factors?._meta?.confidence || sRes.confidence || {}
-
   const pOsm = pRes.osm_query_meta || {}
   const sOsm = sRes.osm_query_meta || {}
 
@@ -36,12 +33,6 @@ export default function LocationComparisonModal({ isOpen, onClose, primaryResult
       pVal: `${pScoreNum.toFixed(1)}/100`,
       sVal: `${sScoreNum.toFixed(1)}/100`,
       winner: pScoreNum > sScoreNum ? 'primary' : pScoreNum < sScoreNum ? 'secondary' : 'tie',
-    },
-    {
-      label: 'Data Confidence',
-      pVal: pConf.label ? `${pConf.label} (${Math.round(pConf.score || 0)}%)` : '99.8%',
-      sVal: sConf.label ? `${sConf.label} (${Math.round(sConf.score || 0)}%)` : '95.0%',
-      winner: (pConf.score || 99) >= (sConf.score || 95) ? 'primary' : 'secondary',
     },
     {
       label: 'Road Accessibility',
@@ -201,7 +192,7 @@ export default function LocationComparisonModal({ isOpen, onClose, primaryResult
         </table>
 
         <div class="footer">
-          Obrix Location Intelligence Engine v0.1.0 &bull; Proprietary & Confidential Spatial Analysis
+          Obrix Location Intelligence Engine v1.0.0 &bull; Proprietary & Confidential Spatial Analysis
         </div>
       </body>
       </html>

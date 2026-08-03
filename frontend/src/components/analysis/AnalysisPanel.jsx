@@ -15,44 +15,24 @@
 
 import { useState } from 'react'
 import {
-  X, TrendingUp, MapPin, Lightbulb, ChevronRight,
-  AlertTriangle, Globe2, Bookmark, ArrowLeftRight, Check,
+  X, Check, Bookmark, ArrowLeftRight, TrendingUp, MapPin,
 } from 'lucide-react'
 import useMapStore from '@/store/mapStore'
 import useLocationStore from '@/store/locationStore'
 import { FACTOR_META, BUSINESS_TYPES } from '@/constants'
 import ScoreRing from './ScoreRing'
 import FactorBar from './FactorBar'
-import IntelligenceMetricsCard from './IntelligenceMetricsCard'
 import CompetitorAnalysisCard from './CompetitorAnalysisCard'
 import LocationComparisonModal from './LocationComparisonModal'
 import AiInsightsCard from './AiInsightsCard'
 import ReportViewerModal from '../reports/ReportViewerModal'
 import useReportStore from '@/store/reportStore'
 
-// ── Feature display metadata ────────────────────────────────────────────────
-const FEATURE_META = {
-  roads:         { emoji: '🛣️',  label: 'Roads' },
-  restaurants:   { emoji: '🍽️', label: 'Restaurants' },
-  banks:         { emoji: '🏦',  label: 'Banks' },
-  bus_stops:     { emoji: '🚌',  label: 'Bus Stops' },
-  hospitals:     { emoji: '🏥',  label: 'Hospitals' },
-  schools:       { emoji: '🏫',  label: 'Schools' },
-  fuel_stations: { emoji: '⛽',  label: 'Fuel Stations' },
-  parks:         { emoji: '🌳',  label: 'Parks' },
-}
-
-// Ordered by typical relevance (high-signal first)
-const DISPLAY_ORDER = [
-  'roads', 'restaurants', 'banks', 'bus_stops',
-  'hospitals', 'schools', 'fuel_stations', 'parks',
-]
-
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function AnalysisPanel() {
-  const { analysisResult, isAnalyzing, closePanel } = useMapStore()
-  const { saveLocation, isSaving, savedLocations, isComparisonOpen, secondaryResult, openComparison, closeComparison } = useLocationStore()
+  const { analysisResult, isAnalyzing, closePanel, selectedLat, selectedLon } = useMapStore()
+  const { saveLocation, isSaving, savedLocations, isComparisonOpen, closeComparison, secondaryResult } = useLocationStore()
   const { activeReport, closeReportViewer } = useReportStore()
 
   const [savedSuccess, setSavedSuccess] = useState(false)
@@ -62,12 +42,7 @@ export default function AnalysisPanel() {
   const result           = analysisResult?.result   ?? null
   const score            = result?.site_readiness_score ?? 0
   const breakdown        = result?.score_breakdown  ?? {}
-  const insights         = result?.ai_insights      ?? []
-  const recs             = result?.recommendations  ?? []
-  const featureCounts    = result?.feature_counts   ?? {}
-  const osmMeta          = result?.osm_query_meta   ?? {}
   const rawFactors       = result?.raw_factors       ?? {}
-  const osmError         = osmMeta.osm_error        ?? null
   const bType = BUSINESS_TYPES.find((b) => b.value === analysisResult?.business_type)
 
   const handleBookmark = async () => {
@@ -82,15 +57,25 @@ export default function AnalysisPanel() {
       return
     }
 
+    const isAlreadySaved = savedLocations.some(
+      (loc) =>
+        parseFloat(loc.latitude).toFixed(4) === lat.toFixed(4) &&
+        parseFloat(loc.longitude).toFixed(4) === lon.toFixed(4)
+    )
+    if (isAlreadySaved) {
+      setToastType('error')
+      setToastMessage('Location already saved!')
+      setTimeout(() => setToastMessage(null), 3000)
+      return
+    }
+
     const bLabel = bType ? bType.label : 'Analysis Site'
     const name = `${bLabel} (${lat.toFixed(3)}, ${lon.toFixed(3)})`
     
-    const confidenceScore = rawFactors?._meta?.confidence?.score || 95
     const metaPayload = JSON.stringify({
       type: 'single',
       business_type: analysisResult.business_type || 'retail',
-      readiness_score: score.toFixed(1),
-      confidence: Math.round(confidenceScore),
+      readiness_score: Number(score).toFixed(1),
       radius_m: analysisResult.radius_m || 1000,
       analysisResult: analysisResult,
     })
@@ -226,32 +211,6 @@ export default function AnalysisPanel() {
           <CompetitorAnalysisCard result={result.raw_factors?._meta?.competition_metrics ? { competition_metrics: result.raw_factors._meta.competition_metrics } : result} />
         )}
 
-        {/* ── Nearby Features (real OSM data) ─────────────────────────── */}
-        <div className="space-y-3">
-          <SectionDivider label="Nearby Features">
-            <div className="flex items-center gap-1.5">
-              <Globe2 className="w-3 h-3 text-white/20" />
-              <span className="text-[10px] text-white/20">
-                {osmError
-                  ? 'unavailable'
-                  : `${osmMeta.total_features ?? 0} via OpenStreetMap`}
-              </span>
-            </div>
-          </SectionDivider>
-
-          {osmError
-            ? <OsmErrorCard />
-            : <NearbyFeaturesGrid counts={featureCounts} />
-          }
-        </div>
-
-        {/* ── Intelligence Metrics (Phase 3 Final) ───────────────────────── */}
-        {result && (
-          <div className="space-y-3">
-            <SectionDivider label="Intelligence Metrics" />
-            <IntelligenceMetricsCard result={result} />
-          </div>
-        )}
 
         {/* Factor breakdown */}
         {Object.keys(breakdown).length > 0 && (
@@ -276,66 +235,62 @@ export default function AnalysisPanel() {
           </div>
         )}
 
-        {/* Insights */}
-        {insights.length > 0 && (
+        {/* AI Recommendation */}
+        {result?.recommendation && (
           <div className="space-y-3">
-            <SectionDivider label="Insights" />
-            {insights.map((insight, i) => (
-              <div key={i} className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.025]">
-                <div className="flex items-start gap-2.5">
-                  {insight.type === 'warning'
-                    ? <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                    : <Lightbulb     className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
-                  }
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-white/80 leading-snug">
-                      {insight.title}
-                    </p>
-                    <p className="text-xs text-white/40 mt-1 leading-relaxed">
-                      {insight.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <SectionDivider label="AI Recommendation" />
+            <div className="p-4 rounded-2xl border border-brand-500/20 bg-brand-500/5 backdrop-blur-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-brand-500/10 rounded-full blur-2xl" />
+              <p className="text-xs text-slate-200 leading-relaxed relative z-10 font-medium">
+                {result.recommendation}
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Recommendations */}
-        {recs.length > 0 && (
-          <div className="space-y-3">
-            <SectionDivider label="Recommendations" />
-            {recs.map((rec, i) => (
-              <div key={i}
-                className="flex items-start gap-3 p-3.5 rounded-xl
-                           bg-white/[0.025] border border-white/[0.06]">
-                <ChevronRight className="w-4 h-4 text-accent-400 flex-shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-white/80 leading-snug">
-                    {rec.action}
+        {/* Top Positive & Negative Factors */}
+        {((result?.top_positive && result.top_positive.length > 0) ||
+          (result?.top_negative && result.top_negative.length > 0)) && (
+          <div className="space-y-4">
+            <SectionDivider label="Top Analysis Factors" />
+            <div className="grid grid-cols-1 gap-3">
+              {/* Positive Factors */}
+              {result?.top_positive && result.top_positive.length > 0 && (
+                <div className="p-3.5 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.02]">
+                  <p className="text-[10px] font-bold tracking-widest text-emerald-400 uppercase mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Strengths / Positives
                   </p>
-                  {rec.rationale && (
-                    <p className="text-xs text-white/40 mt-1 leading-relaxed">
-                      {rec.rationale}
-                    </p>
-                  )}
-                  {rec.impact && (
-                    <span className={`inline-block mt-2 text-[10px] font-semibold
-                                      uppercase tracking-wider px-2 py-0.5 rounded-full
-                                      ${rec.impact === 'high'
-                                        ? 'bg-emerald-500/15 text-emerald-400'
-                                        : rec.impact === 'medium'
-                                          ? 'bg-amber-500/15 text-amber-400'
-                                          : 'bg-slate-500/15 text-slate-400'
-                                      }`}>
-                      {rec.impact} impact
-                    </span>
-                  )}
+                  <ul className="space-y-1.5">
+                    {result.top_positive.map((factor, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-300 leading-normal">
+                        <span className="text-emerald-400 font-bold shrink-0 mt-0.5">•</span>
+                        <span>{factor}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            ))}
+              )}
+
+              {/* Negative Factors */}
+              {result?.top_negative && result.top_negative.length > 0 && (
+                <div className="p-3.5 rounded-2xl border border-rose-500/15 bg-rose-500/[0.02]">
+                  <p className="text-[10px] font-bold tracking-widest text-rose-400 uppercase mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Risks / Negatives
+                  </p>
+                  <ul className="space-y-1.5">
+                    {result.top_negative.map((factor, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-300 leading-normal">
+                        <span className="text-rose-400 font-bold shrink-0 mt-0.5">•</span>
+                        <span>{factor}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         )}
+
         {/* AI Insights Card */}
         {result && (
           <div className="space-y-3 mt-4">
@@ -343,19 +298,6 @@ export default function AnalysisPanel() {
             <AiInsightsCard analysisResult={analysisResult} />
           </div>
         )}
-      </div>
-
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <div className="px-5 py-3 border-t border-white/[0.07] flex-shrink-0">
-        <p className="text-[10px] text-white/20 text-center leading-relaxed">
-          {osmMeta.source === 'cache'
-            ? '📦 Cached · '
-            : osmMeta.query_time_ms
-              ? `⚡ ${Math.round(osmMeta.query_time_ms)}ms · `
-              : ''}
-          {osmError ? 'OSM unavailable · ' : ''}
-          Scoring engine: Phase 5
-        </p>
       </div>
 
       {/* Location Comparison Modal (Priority 4) */}
@@ -374,81 +316,6 @@ export default function AnalysisPanel() {
           report={activeReport}
         />
       )}
-    </div>
-  )
-}
-
-// ── NearbyFeaturesGrid ────────────────────────────────────────────────────────
-
-function NearbyFeaturesGrid({ counts }) {
-  const hasAny = DISPLAY_ORDER.some((cat) => (counts[cat] ?? 0) > 0)
-
-  if (!hasAny) {
-    return (
-      <div className="rounded-xl border border-dashed border-white/[0.08]
-                      p-5 text-center">
-        <p className="text-xs text-white/30">
-          No features found within the search radius.
-          Try increasing the radius.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {DISPLAY_ORDER.map((cat) => {
-        const meta  = FEATURE_META[cat] ?? { emoji: '📍', label: cat }
-        const count = counts[cat] ?? 0
-        const active = count > 0
-
-        return (
-          <div
-            key={cat}
-            className={`flex items-center gap-2.5 p-3 rounded-xl border
-                        transition-colors duration-150
-                        ${active
-                          ? 'bg-white/[0.045] border-white/[0.09]'
-                          : 'bg-white/[0.015] border-white/[0.04]'
-                        }`}
-          >
-            <span className="text-xl leading-none flex-shrink-0">
-              {meta.emoji}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className={`text-[10px] leading-tight truncate
-                             ${active ? 'text-white/45' : 'text-white/20'}`}>
-                {meta.label}
-              </p>
-              <p className={`text-lg font-bold leading-tight tabular-nums
-                             ${active ? 'text-white' : 'text-white/20'}`}>
-                {count}
-              </p>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── OsmErrorCard ──────────────────────────────────────────────────────────────
-
-function OsmErrorCard() {
-  return (
-    <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.05]">
-      <div className="flex items-start gap-2.5">
-        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-xs font-semibold text-amber-300/80 leading-snug">
-            Geospatial data temporarily unavailable
-          </p>
-          <p className="text-xs text-white/35 mt-1 leading-relaxed">
-            Could not retrieve OpenStreetMap data for this location.
-            The site score shown is based on mock values only.
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
@@ -481,24 +348,6 @@ function LoadingSkeleton() {
           <div className="mt-4 h-5 w-40 rounded-full bg-white/[0.04] animate-pulse" />
         </div>
 
-        {/* Features grid skeleton */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="h-2.5 w-28 rounded bg-white/[0.06] animate-pulse" />
-            <div className="h-2.5 w-24 rounded bg-white/[0.04] animate-pulse" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-[3.25rem] rounded-xl bg-white/[0.04] animate-pulse
-                           border border-white/[0.06]"
-                style={{ animationDelay: `${i * 60}ms` }}
-              />
-            ))}
-          </div>
-        </div>
-
         {/* Factor bars skeleton */}
         <div className="space-y-3">
           <div className="h-2.5 w-24 rounded bg-white/[0.06] animate-pulse" />
@@ -526,7 +375,7 @@ function LoadingSkeleton() {
             ))}
           </div>
           <span className="text-xs text-white/30">
-            Fetching OpenStreetMap data…
+            Analyzing location data…
           </span>
         </div>
       </div>
@@ -548,3 +397,4 @@ function SectionDivider({ label, children }) {
     </div>
   )
 }
+

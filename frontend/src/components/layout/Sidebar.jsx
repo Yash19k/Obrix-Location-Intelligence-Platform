@@ -73,7 +73,7 @@ export default function Sidebar() {
       {/* Footer version tag */}
       <div className="px-4 py-3 border-t border-white/5 text-center">
         <p className="text-[10px] text-white/20 font-mono">
-          {isCollapsed ? 'v0.1' : 'obrix v0.1.0'}
+          {isCollapsed ? 'v1.0' : 'obrix v1.0.0'}
         </p>
       </div>
     </aside>

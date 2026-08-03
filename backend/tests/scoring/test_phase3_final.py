@@ -24,7 +24,7 @@ from intelligence.scoring.services.distance   import HaversineDistanceService
 from intelligence.scoring.services.density    import DensityService
 from intelligence.scoring.services.roads      import RoadService, ROAD_QUALITY_WEIGHTS
 from intelligence.scoring.services.competition import CompetitionService, COMPETITOR_PROFILES
-from intelligence.scoring.confidence  import ConfidenceCalculator
+
 from intelligence.scoring.explainability import ExplainabilityBuilder
 from intelligence.scoring.engine       import ScoringEngine
 
@@ -256,45 +256,6 @@ class TestCompetitionService(unittest.TestCase):
             result = CompetitionService.detect({}, btype, 0, 0, 1000)
             self.assertIsInstance(result["competitor_count"], int)
 
-
-# ── Confidence Calculator ─────────────────────────────────────────────────────
-
-class TestConfidenceCalculator(unittest.TestCase):
-
-    def test_rich_data_gives_high_confidence(self):
-        counts = {"roads": 50, "restaurants": 20, "banks": 10,
-                  "bus_stops": 5, "hospitals": 3, "schools": 4,
-                  "fuel_stations": 2, "parks": 3}
-        result = ConfidenceCalculator.calculate(
-            counts, osm_error=None, total_features=200, is_enriched=True
-        )
-        self.assertGreater(result["score"], 75)
-        self.assertEqual(result["label"], "High")
-
-    def test_osm_error_reduces_confidence(self):
-        r_ok  = ConfidenceCalculator.calculate({}, None, 50)
-        r_err = ConfidenceCalculator.calculate({}, "timeout", 50)
-        self.assertLess(r_err["score"], r_ok["score"])
-
-    def test_no_features_returns_low_confidence(self):
-        result = ConfidenceCalculator.calculate({}, None, 0)
-        self.assertLess(result["score"], 50)
-
-    def test_enriched_bonus(self):
-        r_plain  = ConfidenceCalculator.calculate({"roads": 20}, None, 20, is_enriched=False)
-        r_enrich = ConfidenceCalculator.calculate({"roads": 20}, None, 20, is_enriched=True)
-        self.assertGreater(r_enrich["score"], r_plain["score"])
-
-    def test_score_clamped_0_to_100(self):
-        result = ConfidenceCalculator.calculate({"roads": 1000}, None, 10000, is_enriched=True)
-        self.assertLessEqual(result["score"], 100.0)
-        self.assertGreaterEqual(result["score"], 0.0)
-
-    def test_penalties_list_populated_on_errors(self):
-        result = ConfidenceCalculator.calculate({}, "API error", 0)
-        self.assertGreater(len(result["penalties"]), 0)
-
-
 # ── Explainability Builder ────────────────────────────────────────────────────
 
 class TestExplainabilityBuilder(unittest.TestCase):
@@ -368,12 +329,7 @@ class TestScoringEnginePhase3Final(unittest.TestCase):
         self.assertLessEqual(result.overall, 100)
         self.assertIn("accessibility", result.factors)
 
-    def test_result_has_confidence(self):
-        engine = ScoringEngine()
-        result = engine.calculate({"roads": 10}, "retail")
-        self.assertIsInstance(result.confidence, dict)
-        self.assertIn("score", result.confidence)
-        self.assertIn("label", result.confidence)
+
 
     def test_result_has_normalization_metadata(self):
         engine = ScoringEngine()
@@ -387,7 +343,6 @@ class TestScoringEnginePhase3Final(unittest.TestCase):
                                    "restaurants": 5, "bus_stops": 2}, "retail")
         rf = result.to_raw_factors()
         self.assertIn("_meta", rf)
-        self.assertIn("confidence",             rf["_meta"])
         self.assertIn("normalization_metadata", rf["_meta"])
 
     def test_deterministic_count_mode(self):

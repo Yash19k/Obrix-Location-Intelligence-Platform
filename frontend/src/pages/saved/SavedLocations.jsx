@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bookmark, MapPin, Eye, ArrowLeftRight, Trash2, Calendar, Sparkles, Building2, Award, ShieldCheck } from 'lucide-react'
+import { Bookmark, MapPin, Eye, ArrowLeftRight, Trash2, Calendar, Sparkles, Building2, Award } from 'lucide-react'
 import useLocationStore from '@/store/locationStore'
 import useMapStore from '@/store/mapStore'
 import useAnalysisStore from '@/store/analysisStore'
@@ -56,14 +56,20 @@ export default function SavedLocations() {
     } else {
       setIsAnalyzing(true)
       navigate('/analyze')
-      const res = await submitAnalysis({
-        latitude: lat,
-        longitude: lon,
-        radius_m: meta.radius_m || 1000,
-        business_type: meta.business_type || 'retail',
-      })
-      if (res.success) {
-        setAnalysisResult(res.data)
+      try {
+        const res = await submitAnalysis({
+          latitude: lat,
+          longitude: lon,
+          radius_m: meta.radius_m || 1000,
+          business_type: meta.business_type || 'retail',
+        })
+        if (res.success) {
+          setAnalysisResult(res.data)
+        } else {
+          setIsAnalyzing(false)
+        }
+      } catch {
+        setIsAnalyzing(false)
       }
       return
     }
@@ -127,7 +133,6 @@ export default function SavedLocations() {
 
             const isComparison = meta.type === 'comparison' || !!meta.primaryResult
             const readinessScore = meta.recScore || meta.readiness_score || meta.score || null
-            const confidence = meta.confidence || '98'
             const bTypeLabel = isComparison
               ? 'SITE COMPARISON'
               : meta.business_type ? meta.business_type.toUpperCase() : 'SITE ANALYSIS'
@@ -179,10 +184,6 @@ export default function SavedLocations() {
                     <span className="flex items-center gap-1 font-mono text-[11px]">
                       <MapPin className="w-3.5 h-3.5 text-indigo-400" />
                       {lat}, {lon}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] text-emerald-400">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      {confidence}% Confidence
                     </span>
                     <span className="flex items-center gap-1 text-[10px] text-slate-500">
                       <Calendar className="w-3 h-3" />

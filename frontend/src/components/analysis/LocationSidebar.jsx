@@ -10,7 +10,7 @@
  */
 
 import { useEffect } from 'react'
-import { Loader2, Zap, Crosshair, RotateCcw, Layers, Bookmark, Trash2, ArrowLeftRight } from 'lucide-react'
+import { Loader2, Zap, Crosshair, RotateCcw, Layers, Bookmark, Trash2, ArrowLeftRight, Check } from 'lucide-react'
 import useMapStore from '@/store/mapStore'
 import useAnalysisStore from '@/store/analysisStore'
 import useLocationStore from '@/store/locationStore'
@@ -135,35 +135,40 @@ export default function LocationSidebar() {
           </div>
         )}
 
-        {/* Business Type */}
-        <div className="space-y-2">
+        {/* Business Type Selector Grid */}
+        <div className="space-y-2.5">
           <label className="block text-[10px] font-semibold text-white/40 uppercase tracking-widest">
-            Business Type
+            Select Business Type
           </label>
-          <div className="relative">
-            <select
-              value={businessType}
-              onChange={(e) => setBusinessType(e.target.value)}
-              className="w-full appearance-none bg-white/[0.05] border border-white/10
-                         rounded-xl px-3.5 py-2.5 text-sm text-white
-                         focus:outline-none focus:ring-2 focus:ring-brand-500/40
-                         focus:border-brand-500/40 cursor-pointer
-                         transition-colors hover:bg-white/[0.08]"
-              style={{ colorScheme: 'dark' }}
-            >
-              {BUSINESS_TYPES.map((bt) => (
-                <option key={bt.value} value={bt.value}
-                  style={{ background: '#0d1526', color: '#fff' }}>
-                  {bt.icon} {bt.label}
-                </option>
-              ))}
-            </select>
-            {/* Custom chevron */}
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-              <svg className="w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            {BUSINESS_TYPES.map((bt) => {
+              const isSelected = businessType === bt.value
+              return (
+                <button
+                  key={bt.value}
+                  onClick={() => setBusinessType(bt.value)}
+                  className={`relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer select-none group
+                    ${isSelected
+                      ? 'bg-brand-600/15 border-brand-500 shadow-lg shadow-brand-500/10'
+                      : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20 hover:bg-white/[0.05]'
+                    }`}
+                >
+                  <span className="text-2xl mb-1.5 transition-transform duration-200 group-hover:scale-110">
+                    {bt.icon}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-200 leading-tight">
+                    {bt.label.split(" / ")[0]}
+                  </span>
+                  
+                  {/* Selected check indicator */}
+                  {isSelected && (
+                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 

@@ -64,12 +64,14 @@ class ScoreResult:
     business_type: str
 
     # Phase 3 Final extensions
-    confidence:               dict[str, Any] = field(default_factory=dict)
     distance_metrics:         dict[str, Any] = field(default_factory=dict)
     density_metrics:          dict[str, Any] = field(default_factory=dict)
     road_hierarchy:           dict[str, Any] = field(default_factory=dict)
     competition_metrics:      dict[str, Any] = field(default_factory=dict)
     normalization_metadata:   dict[str, Any] = field(default_factory=dict)
+    top_positive:             list[str] = field(default_factory=list)
+    top_negative:             list[str] = field(default_factory=list)
+    recommendation:           str = ""
 
     # ── Serialisation helpers ─────────────────────────────────────────────────
 
@@ -86,12 +88,14 @@ class ScoreResult:
         """
         out: dict[str, Any] = {k: v.to_dict() for k, v in self.factors.items()}
         out["_meta"] = {
-            "confidence":             self.confidence,
             "distance_metrics":       self.distance_metrics,
             "density_metrics":        self.density_metrics,
             "road_hierarchy":         self.road_hierarchy,
             "competition_metrics":    self.competition_metrics,
             "normalization_metadata": self.normalization_metadata,
+            "top_positive":           self.top_positive,
+            "top_negative":           self.top_negative,
+            "recommendation":         self.recommendation,
         }
         return out
 
@@ -101,7 +105,6 @@ class ScoreResult:
             "overall":                round(self.overall, 2),
             "business_type":          self.business_type,
             "weights_used":           self.weights_used,
-            "confidence":             self.confidence,
             "distance_metrics":       self.distance_metrics,
             "density_metrics":        self.density_metrics,
             "road_hierarchy":         self.road_hierarchy,

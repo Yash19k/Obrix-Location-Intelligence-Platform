@@ -48,18 +48,17 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
 
     # ── Phase 3 Final: from raw_factors._meta ─────────────────────────────
 
-    confidence         = serializers.SerializerMethodField()
     distance_metrics   = serializers.SerializerMethodField()
     density_metrics    = serializers.SerializerMethodField()
     road_hierarchy     = serializers.SerializerMethodField()
     competition_metrics = serializers.SerializerMethodField()
+    top_positive       = serializers.SerializerMethodField()
+    top_negative       = serializers.SerializerMethodField()
+    recommendation     = serializers.SerializerMethodField()
 
     def _meta(self, obj) -> dict:
         """Helper: extract _meta from raw_factors."""
         return obj.raw_factors.get("_meta", {})
-
-    def get_confidence(self, obj) -> dict:
-        return self._meta(obj).get("confidence", {})
 
     def get_distance_metrics(self, obj) -> dict:
         return self._meta(obj).get("distance_metrics", {})
@@ -72,6 +71,15 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
 
     def get_competition_metrics(self, obj) -> dict:
         return self._meta(obj).get("competition_metrics", {})
+
+    def get_top_positive(self, obj) -> list:
+        return self._meta(obj).get("top_positive", [])
+
+    def get_top_negative(self, obj) -> list:
+        return self._meta(obj).get("top_negative", [])
+
+    def get_recommendation(self, obj) -> str:
+        return self._meta(obj).get("recommendation", "")
 
     class Meta:
         model  = AnalysisResult
@@ -90,11 +98,14 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
             "feature_details",
             "osm_query_meta",
             # Phase 3 Final
-            "confidence",
             "distance_metrics",
             "density_metrics",
             "road_hierarchy",
             "competition_metrics",
+            # Rebalanced factors
+            "top_positive",
+            "top_negative",
+            "recommendation",
         )
         read_only_fields = fields
 

@@ -22,7 +22,7 @@ const useMapStore = create((set) => ({
   isLocating: false,
 
   // ── Analysis form state ───────────────────────────────────────────────────
-  businessType: 'retail',
+  businessType: 'pharmacy',
   radius: 1000,
 
   // ── Analysis result ───────────────────────────────────────────────────────
@@ -33,16 +33,6 @@ const useMapStore = create((set) => ({
 
   // ── Map Style & Layer Controls ─────────────────────────────────────────────
   mapStyle: 'dark', // 'dark' | 'light' | 'street' | 'satellite'
-  activeLayers: {
-    roads: true,
-    hospitals: true,
-    schools: true,
-    parks: true,
-    restaurants: true,
-    banks: true,
-    fuel_stations: true,
-    bus_stops: true,
-  },
 
   // ── Interactive Compare Mode ───────────────────────────────────────────────
   compareMode: false,
@@ -90,22 +80,6 @@ const useMapStore = create((set) => ({
 
   setMapStyle: (style) => set({ mapStyle: style }),
 
-  toggleLayer: (layerKey) =>
-    set((state) => ({
-      activeLayers: {
-        ...state.activeLayers,
-        [layerKey]: !state.activeLayers[layerKey],
-      },
-    })),
-
-  setAllLayers: (enabled) =>
-    set((state) => {
-      const next = {}
-      Object.keys(state.activeLayers).forEach((k) => {
-        next[k] = enabled
-      })
-      return { activeLayers: next }
-    }),
 
   setSearchQuery: (q) => set({ searchQuery: q }),
   setLocating: (val) => set({ isLocating: val }),

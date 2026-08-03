@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, Sparkles, Download, RefreshCw, Award, CheckCircle, AlertTriangle, ShieldCheck, FileText, TrendingUp, Building2, MapPin } from 'lucide-react'
 import useReportStore from '@/store/reportStore'
+import Spinner from '@/components/ui/Spinner'
 
 export default function ReportViewerModal({ isOpen, onClose, report }) {
   const { regenerateReport, isGenerating } = useReportStore()
@@ -27,142 +28,172 @@ export default function ReportViewerModal({ isOpen, onClose, report }) {
     }
   }
 
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+
   const handleDownloadPdf = () => {
-    const reportHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Obrix_AI_Report_Ahmedabad_${bizType}.pdf</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; background: #0b1120; color: #f8fafc; padding: 40px; margin: 0; }
-          .header { border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
-          .title { font-size: 26px; font-weight: bold; color: #818cf8; }
-          .subtitle { font-size: 14px; color: #94a3b8; margin-top: 6px; }
-          .badge { background: #1e1b4b; color: #818cf8; border: 1px solid #4338ca; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-          .section { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-          .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #818cf8; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 6px; }
-          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-          .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
-          .rec-box { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 20px; border-radius: 16px; margin-bottom: 24px; }
-          .rec-grade { font-size: 28px; font-weight: bold; color: #34d399; }
-          .footer { border-top: 1px solid #334155; padding-top: 20px; text-align: center; font-size: 11px; color: #64748b; margin-top: 40px; }
-          ul { margin: 6px 0; padding-left: 20px; }
-          li { margin-bottom: 4px; font-size: 13px; color: #cbd5e1; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <div class="title">Obrix Location Intelligence</div>
-            <div class="subtitle">AI Business Consulting & Spatial Feasibility Report — ${bizType}</div>
-          </div>
-          <div>
-            <span class="badge">McKinsey-Grade Analytics</span>
-            <div style="font-size: 11px; color: #64748b; margin-top: 8px; font-family: monospace;">Date: ${new Date(report.created_at || Date.now()).toLocaleDateString()}</div>
-          </div>
-        </div>
+    setIsDownloadingPdf(true)
 
-        <div class="rec-box">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #34d399; font-weight: bold;">Investment Recommendation</div>
-              <div class="rec-grade">GRADE ${rec.grade || 'A'} &mdash; ${rec.recommendation || 'YES'}</div>
+    setTimeout(() => {
+      try {
+        const reportHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Location_Report</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; background: #ffffff; color: #0f172a; padding: 40px; margin: 0; }
+              .header { border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+              .title { font-size: 26px; font-weight: bold; color: #4f46e5; }
+              .subtitle { font-size: 14px; color: #475569; margin-top: 6px; }
+              .badge { background: #f1f5f9; color: #4f46e5; border: 1px solid #e2e8f0; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+              .section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; }
+              .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #4f46e5; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
+              .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+              .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+              .rec-box { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 20px; border-radius: 16px; margin-bottom: 24px; }
+              .rec-grade { font-size: 28px; font-weight: bold; color: #059669; }
+              .footer { border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; font-size: 11px; color: #64748b; margin-top: 40px; }
+              ul { margin: 6px 0; padding-left: 20px; }
+              li { margin-bottom: 4px; font-size: 13px; color: #334155; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div>
+                <div class="title">Obrix Location Intelligence</div>
+                <div class="subtitle">AI Business Consulting & Spatial Feasibility Report — ${bizType}</div>
+              </div>
+              <div>
+                <span class="badge">McKinsey-Grade Analytics</span>
+                <div style="font-size: 11px; color: #64748b; margin-top: 8px; font-family: monospace;">Date: ${new Date(report.created_at || Date.now()).toLocaleDateString()}</div>
+              </div>
             </div>
-            <div style="font-size: 24px; font-weight: bold; color: #fbbf24;">Score: ${score.toFixed(1)}/100</div>
-          </div>
-          <div style="font-size: 13px; color: #e2e8f0; margin-top: 10px;">${rec.reasoning || ''}</div>
-        </div>
 
-        <div class="section">
-          <div class="section-title">1. Executive Summary</div>
-          <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.executive_summary || ''}</p>
-        </div>
-
-        <div class="section">
-          <div class="section-title">2. Location & Spatial Setting</div>
-          <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.location_overview || ''}</p>
-        </div>
-
-        <div class="section">
-          <div class="section-title">3. Site Readiness Interpretation</div>
-          <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.readiness_interpretation || ''}</p>
-        </div>
-
-        <div class="grid-2">
-          <div class="section">
-            <div class="section-title">4. Infrastructure & Connectivity</div>
-            <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.infrastructure_analysis || ''}</p>
-          </div>
-          <div class="section">
-            <div class="section-title">5. Accessibility Analysis</div>
-            <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.accessibility_analysis || ''}</p>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">6. Competitor Analysis & Saturation</div>
-          <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.competitor_analysis || ''}</p>
-        </div>
-
-        <div class="section">
-          <div class="section-title">7. SWOT Analysis Matrix</div>
-          <div class="grid-2">
-            <div>
-              <strong style="color: #34d399; font-size: 12px;">STRENGTHS</strong>
-              <ul>${(swot.strengths || []).map(s => `<li>${s}</li>`).join('')}</ul>
+            <div class="rec-box">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #059669; font-weight: bold;">Investment Recommendation</div>
+                  <div class="rec-grade">GRADE ${rec.grade || 'A'} &mdash; ${rec.recommendation || 'YES'}</div>
+                </div>
+                <div style="font-size: 24px; font-weight: bold; color: #d97706;">Score: ${score.toFixed(1)}/100</div>
+              </div>
+              <div style="font-size: 13px; color: #334155; margin-top: 10px;">${rec.reasoning || ''}</div>
             </div>
-            <div>
-              <strong style="color: #f87171; font-size: 12px;">WEAKNESSES</strong>
-              <ul>${(swot.weaknesses || []).map(w => `<li>${w}</li>`).join('')}</ul>
+
+            <div class="section">
+              <div class="section-title">1. Executive Summary</div>
+              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.executive_summary || ''}</p>
             </div>
-            <div style="margin-top: 10px;">
-              <strong style="color: #60a5fa; font-size: 12px;">OPPORTUNITIES</strong>
-              <ul>${(swot.opportunities || []).map(o => `<li>${o}</li>`).join('')}</ul>
+
+            <div class="section">
+              <div class="section-title">2. Location & Spatial Setting</div>
+              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.location_overview || ''}</p>
             </div>
-            <div style="margin-top: 10px;">
-              <strong style="color: #fbbf24; font-size: 12px;">THREATS</strong>
-              <ul>${(swot.threats || []).map(t => `<li>${t}</li>`).join('')}</ul>
+
+            <div class="section">
+              <div class="section-title">3. Site Readiness Interpretation</div>
+              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.readiness_interpretation || ''}</p>
             </div>
-          </div>
-        </div>
 
-        <div class="section">
-          <div class="section-title">8. Risk Assessment</div>
-          <ul style="list-style: none; padding: 0;">
-            <li><strong>Business Risks:</strong> ${risks.business_risks || 'Standard commercial risks.'}</li>
-            <li style="margin-top: 6px;"><strong>Accessibility Risks:</strong> ${risks.accessibility_risks || 'Traffic bottlenecks during peak hours.'}</li>
-            <li style="margin-top: 6px;"><strong>Market Saturation Risks:</strong> ${risks.market_risks || 'Competitive pressure within 1km.'}</li>
-          </ul>
-        </div>
+            <div class="grid-2">
+              <div class="section">
+                <div class="section-title">4. Infrastructure & Connectivity</div>
+                <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.infrastructure_analysis || ''}</p>
+              </div>
+              <div class="section">
+                <div class="section-title">5. Accessibility Analysis</div>
+                <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.accessibility_analysis || ''}</p>
+              </div>
+            </div>
 
-        <div class="section">
-          <div class="section-title">9. Strategic Business Recommendations</div>
-          <p style="font-size: 13px; color: #cbd5e1;"><strong>Target Customers:</strong> ${strat.target_customers || ''}</p>
-          <p style="font-size: 13px; color: #cbd5e1; margin-top: 6px;"><strong>Operating Hours:</strong> ${strat.best_operating_hours || ''}</p>
-          <strong style="color: #818cf8; font-size: 12px; display: block; margin-top: 10px;">MARKETING INITIATIVES:</strong>
-          <ul>${(strat.marketing_ideas || []).map(m => `<li>${m}</li>`).join('')}</ul>
-        </div>
+            <div class="section">
+              <div class="section-title">6. Competitor Analysis</div>
+              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.competitor_analysis || ''}</p>
+            </div>
 
-        <div class="section">
-          <div class="section-title">10. Final Executive Conclusion</div>
-          <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">${ai.final_conclusion || ''}</p>
-        </div>
+            <div class="section">
+              <div class="section-title">7. SWOT Analysis Matrix</div>
+              <div class="grid-2">
+                <div>
+                  <strong style="color: #059669; font-size: 12px;">STRENGTHS</strong>
+                  <ul>${(swot.strengths || []).map(s => `<li>${s}</li>`).join('')}</ul>
+                </div>
+                <div>
+                  <strong style="color: #dc2626; font-size: 12px;">WEAKNESSES</strong>
+                  <ul>${(swot.weaknesses || []).map(w => `<li>${w}</li>`).join('')}</ul>
+                </div>
+                <div style="margin-top: 10px;">
+                  <strong style="color: #2563eb; font-size: 12px;">OPPORTUNITIES</strong>
+                  <ul>${(swot.opportunities || []).map(o => `<li>${o}</li>`).join('')}</ul>
+                </div>
+                <div style="margin-top: 10px;">
+                  <strong style="color: #d97706; font-size: 12px;">THREATS</strong>
+                  <ul>${(swot.threats || []).map(t => `<li>${t}</li>`).join('')}</ul>
+                </div>
+              </div>
+            </div>
 
-        <div class="footer">
-          Obrix Spatial Intelligence Engine &bull; Confidential Business Consulting Report &bull; Generated for ${report.user || 'Client'}
-        </div>
-      </body>
-      </html>
-    `
+            <div class="section">
+              <div class="section-title">8. Risk Assessment</div>
+              <ul style="list-style: none; padding: 0;">
+                <li><strong>Business Risks:</strong> ${risks.business_risks || 'Standard risks.'}</li>
+                <li><strong>Accessibility Risks:</strong> ${risks.accessibility_risks || 'Traffic delay risk.'}</li>
+              </ul>
+            </div>
 
-    const printWin = window.open('', '_blank')
-    if (printWin) {
-      printWin.document.write(reportHtml)
-      printWin.document.close()
-      setTimeout(() => {
-        printWin.print()
-      }, 500)
-    }
+            <div class="section">
+              <div class="section-title">9. Business Strategy Advice</div>
+              <p style="font-size: 13px; color: #334155;"><strong>Target Customers:</strong> ${strat.target_customers || ''}</p>
+              <p style="font-size: 13px; color: #334155; margin-top: 6px;"><strong>Operating Hours:</strong> ${strat.best_operating_hours || ''}</p>
+              <strong style="color: #4f46e5; font-size: 12px; display: block; margin-top: 10px;">MARKETING INITIATIVES:</strong>
+              <ul>${(strat.marketing_ideas || []).map(m => `<li>${m}</li>`).join('')}</ul>
+            </div>
+
+            <div class="section">
+              <div class="section-title">10. Final Executive Conclusion</div>
+              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.final_conclusion || ''}</p>
+            </div>
+
+            <div class="footer">
+              Obrix Spatial Intelligence Engine &bull; Confidential Business Consulting Report &bull; Generated for ${report.user || 'Client'}
+            </div>
+          </body>
+          </html>
+        `
+
+        const iframe = document.createElement('iframe')
+        iframe.style.position = 'fixed'
+        iframe.style.right = '0'
+        iframe.style.bottom = '0'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.style.border = '0'
+        document.body.appendChild(iframe)
+
+        const doc = iframe.contentWindow.document
+        doc.open()
+        doc.write(reportHtml)
+        doc.close()
+
+        iframe.contentWindow.onload = () => {
+          iframe.contentWindow.document.title = 'Location_Report'
+          iframe.contentWindow.focus()
+          iframe.contentWindow.print()
+          
+          setIsDownloadingPdf(false)
+          setToastMsg('PDF downloaded successfully')
+          setTimeout(() => setToastMsg(null), 3000)
+          
+          setTimeout(() => {
+            document.body.removeChild(iframe)
+          }, 1000)
+        }
+      } catch (err) {
+        setIsDownloadingPdf(false)
+        setToastMsg('⚠ Error: ' + err.message)
+        setTimeout(() => setToastMsg(null), 4000)
+      }
+    }, 1500)
   }
 
   return (
@@ -344,9 +375,18 @@ export default function ReportViewerModal({ isOpen, onClose, report }) {
           <div className="flex items-center gap-3">
             <button
               onClick={handleDownloadPdf}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all"
+              disabled={isDownloadingPdf}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50"
             >
-              <Download className="w-4 h-4" /> Download PDF Report
+              {isDownloadingPdf ? (
+                <>
+                  <Spinner size="sm" className="border-t-slate-400" /> Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" /> Download PDF Report
+                </>
+              )}
             </button>
             <button
               onClick={handleRegenerate}

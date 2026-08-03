@@ -245,8 +245,7 @@ class AnalysisViewSet(viewsets.ModelViewSet):
             "title": "Distance-Weighted Analysis Active",
             "description": (
                 f"Analysis based on {total} OSM features ({source}). "
-                f"Nearby features weighted more than distant ones. "
-                f"Confidence: {conf.get('label', 'N/A')} ({conf.get('score', 0):.0f}%)."
+                f"Nearby features weighted more than distant ones."
             ),
             "priority": 1,
         }]

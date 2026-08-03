@@ -17,7 +17,6 @@ import { MousePointerClick, PanelLeftClose, PanelLeftOpen, ArrowLeftRight, X, Ma
 import useMapStore from '@/store/mapStore'
 import MapView from '@/components/map/MapView'
 import MapStyleControl from '@/components/map/MapStyleControl'
-import LayerControlPanel from '@/components/map/LayerControlPanel'
 import LocationSidebar from '@/components/analysis/LocationSidebar'
 import AnalysisPanel from '@/components/analysis/AnalysisPanel'
 import LocationComparisonModal from '@/components/analysis/LocationComparisonModal'
@@ -92,9 +91,8 @@ export default function Analyze() {
           </div>
         )}
 
-        {/* Top Right Map Controls Overlay (Map Styles + Layer Controls) */}
+        {/* Top Right Map Controls Overlay (Map Styles Control) */}
         <div className="absolute top-3 right-3 z-[3000] flex items-center gap-2">
-          <LayerControlPanel />
           <MapStyleControl />
         </div>
 

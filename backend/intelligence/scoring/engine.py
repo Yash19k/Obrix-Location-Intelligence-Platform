@@ -32,7 +32,6 @@ from .factors.commercial      import CommercialFactor
 from .factors.competition     import CompetitionFactor
 from .factors.environment     import EnvironmentFactor
 from .explainability  import ExplainabilityBuilder
-from .confidence      import ConfidenceCalculator
 from .services.distance   import get_distance_service
 from .services.density    import DensityService
 from .services.roads      import RoadService
@@ -162,22 +161,10 @@ class ScoringEngine:
         else:
             overall = round(sum(f.score for f in factors.values()) / len(factors), 2)
 
-        # ── Step 5: Confidence ────────────────────────────────────────────────
-        plain_counts = (
-            {cat: d["count"] for cat, d in osm_data.items() if isinstance(d, dict)}
-            if is_enriched else feature_counts
-        )
-        confidence = ConfidenceCalculator.calculate(
-            feature_counts  = plain_counts,
-            osm_error       = getattr(feature_result, "error", None),
-            total_features  = getattr(feature_result, "total", sum(plain_counts.values())),
-            is_enriched     = is_enriched,
-            osm_source      = getattr(feature_result, "source", "overpass"),
-        )
-
+        # ── Step 5: Log progress ──────────────────────────────────────────────
         logger.info(
-            "ScoringEngine: type=%s overall=%.1f conf=%.0f%% enriched=%s [%s]",
-            business_type, overall, confidence["score"], is_enriched,
+            "ScoringEngine: type=%s overall=%.1f enriched=%s [%s]",
+            business_type, overall, is_enriched,
             " | ".join(f"{k}={v.score:.1f}" for k, v in factors.items()),
         )
 
@@ -186,7 +173,6 @@ class ScoringEngine:
             factors             = factors,
             weights_used        = {k: weights.get(k, 0.0) for k in factors},
             business_type       = business_type,
-            confidence          = confidence,
             distance_metrics    = extended["distance_metrics"],
             density_metrics     = extended["density_metrics"],
             road_hierarchy      = extended["road_hierarchy"],
