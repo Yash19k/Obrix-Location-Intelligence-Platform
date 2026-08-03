@@ -56,3 +56,7 @@ htmlcov/
 
 # Build artifacts
 *.map
+
+# Large OpenStreetMap datasets
+backend/data/*.osm
+backend/data/*.pbf
