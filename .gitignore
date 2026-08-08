@@ -60,3 +60,4 @@ htmlcov/
 # Large OpenStreetMap datasets
 backend/data/*.osm
 backend/data/*.pbf
+backend/data/*.geojson
