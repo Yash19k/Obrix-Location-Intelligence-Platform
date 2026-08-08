@@ -1,10 +1,59 @@
 import { useEffect, useState } from 'react'
-import { FileText, Search, Filter, SortAsc, Eye, Download, RefreshCw, Trash2, Sparkles, AlertCircle, Award, MapPin } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { FileText, Search, Filter, SortAsc, Eye, Download, RefreshCw, Trash2, Sparkles, Award, MapPin, ArrowRight } from 'lucide-react'
 import useReportStore from '@/store/reportStore'
 import Spinner from '@/components/ui/Spinner'
 import ReportViewerModal from '@/components/reports/ReportViewerModal'
 
+function getScoreBadge(scoreVal) {
+  const num = parseFloat(scoreVal)
+  if (isNaN(num)) return null
+
+  if (num >= 80) {
+    return {
+      label: 'Strong Opportunity',
+      bg: 'bg-[#E7F7E9]',
+      text: 'text-[#43B96B]',
+      border: 'border-[#43B96B]/30',
+      scoreText: `${num.toFixed(1)} / 100`,
+    }
+  } else if (num >= 60) {
+    return {
+      label: 'Promising',
+      bg: 'bg-[#E9EFFF]',
+      text: 'text-[#315CF5]',
+      border: 'border-[#315CF5]/30',
+      scoreText: `${num.toFixed(1)} / 100`,
+    }
+  } else if (num >= 40) {
+    return {
+      label: 'Moderate',
+      bg: 'bg-[#FEF3C7]',
+      text: 'text-amber-800',
+      border: 'border-amber-300',
+      scoreText: `${num.toFixed(1)} / 100`,
+    }
+  } else {
+    return {
+      label: 'Weak',
+      bg: 'bg-[#FEE2E2]',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      scoreText: `${num.toFixed(1)} / 100`,
+    }
+  }
+}
+
+function getGradeColor(grade) {
+  const g = String(grade || 'B').toUpperCase()
+  if (g.startsWith('A')) return 'text-[#43B96B]'
+  if (g.startsWith('B')) return 'text-[#315CF5]'
+  if (g.startsWith('C')) return 'text-amber-800'
+  return 'text-red-600'
+}
+
 export default function Reports() {
+  const navigate = useNavigate()
   const { reports, fetchReports, deleteReport, regenerateReport, isLoading, activeReport, setActiveReport, closeReportViewer } = useReportStore()
   
   const [search, setSearch] = useState('')
@@ -42,19 +91,19 @@ export default function Reports() {
           <head>
             <title>Location_Report</title>
             <style>
-              body { font-family: system-ui, -apple-system, sans-serif; background: #ffffff; color: #0f172a; padding: 40px; margin: 0; }
-              .header { border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
-              .title { font-size: 26px; font-weight: bold; color: #4f46e5; }
-              .subtitle { font-size: 14px; color: #475569; margin-top: 6px; }
-              .badge { background: #f1f5f9; color: #4f46e5; border: 1px solid #e2e8f0; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-              .section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; }
-              .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #4f46e5; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
+              body { font-family: system-ui, -apple-system, sans-serif; background: #ffffff; color: #08111f; padding: 40px; margin: 0; }
+              .header { border-bottom: 2px solid #315cf5; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+              .title { font-size: 26px; font-weight: bold; color: #315cf5; }
+              .subtitle { font-size: 14px; color: #5d6675; margin-top: 6px; }
+              .badge { background: #e9efff; color: #315cf5; border: 1px solid rgba(49,92,245,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+              .section { background: #f6f8fc; border: 1px solid #dde3ec; border-radius: 16px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; }
+              .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #315cf5; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #dde3ec; padding-bottom: 6px; }
               .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-              .rec-box { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 20px; border-radius: 16px; margin-bottom: 24px; }
-              .rec-grade { font-size: 28px; font-weight: bold; color: #059669; }
-              .footer { border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; font-size: 11px; color: #64748b; margin-top: 40px; }
+              .rec-box { background: #e7f7e9; border: 1px solid rgba(67,185,107,0.3); padding: 20px; border-radius: 16px; margin-bottom: 24px; }
+              .rec-grade { font-size: 28px; font-weight: bold; color: #43b96b; }
+              .footer { border-top: 1px solid #dde3ec; padding-top: 20px; text-align: center; font-size: 11px; color: #8a94a3; margin-top: 40px; }
               ul { margin: 6px 0; padding-left: 20px; }
-              li { margin-bottom: 4px; font-size: 13px; color: #334155; }
+              li { margin-bottom: 4px; font-size: 13px; color: #08111f; }
             </style>
           </head>
           <body>
@@ -64,66 +113,66 @@ export default function Reports() {
                 <div class="subtitle">AI Business Consulting & Spatial Feasibility Report — ${bizType}</div>
               </div>
               <div>
-                <span class="badge">McKinsey-Grade Analytics</span>
-                <div style="font-size: 11px; color: #64748b; margin-top: 8px; font-family: monospace;">Date: ${new Date(report.created_at || Date.now()).toLocaleDateString()}</div>
+                <span class="badge">Executive Feasibility Analytics</span>
+                <div style="font-size: 11px; color: #5d6675; margin-top: 8px; font-family: monospace;">Date: ${new Date(report.created_at || Date.now()).toLocaleDateString()}</div>
               </div>
             </div>
 
             <div class="rec-box">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                  <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #059669; font-weight: bold;">Investment Recommendation</div>
+                  <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #43b96b; font-weight: bold;">Investment Recommendation</div>
                   <div class="rec-grade">GRADE ${rec.grade || 'A'} &mdash; ${rec.recommendation || 'YES'}</div>
                 </div>
-                <div style="font-size: 24px; font-weight: bold; color: #d97706;">Score: ${score.toFixed(1)}/100</div>
+                <div style="font-size: 24px; font-weight: bold; color: #315cf5;">Score: ${score.toFixed(1)}/100</div>
               </div>
-              <div style="font-size: 13px; color: #334155; margin-top: 10px;">${rec.reasoning || ''}</div>
+              <div style="font-size: 13px; color: #08111f; margin-top: 10px;">${rec.reasoning || ''}</div>
             </div>
 
             <div class="section">
               <div class="section-title">1. Executive Summary</div>
-              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.executive_summary || ''}</p>
+              <p style="font-size: 13px; line-height: 1.6; color: #08111f;">${ai.executive_summary || ''}</p>
             </div>
 
             <div class="section">
               <div class="section-title">2. Location Overview</div>
-              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.location_overview || ''}</p>
+              <p style="font-size: 13px; line-height: 1.6; color: #08111f;">${ai.location_overview || ''}</p>
             </div>
 
             <div class="section">
               <div class="section-title">3. Site Readiness Interpretation</div>
-              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.readiness_interpretation || ''}</p>
+              <p style="font-size: 13px; line-height: 1.6; color: #08111f;">${ai.readiness_interpretation || ''}</p>
             </div>
 
             <div class="grid-2">
               <div class="section">
                 <div class="section-title">4. Infrastructure Analysis</div>
-                <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.infrastructure_analysis || ''}</p>
+                <p style="font-size: 13px; line-height: 1.6; color: #08111f;">${ai.infrastructure_analysis || ''}</p>
               </div>
               <div class="section">
                 <div class="section-title">5. Accessibility Analysis</div>
-                <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.accessibility_analysis || ''}</p>
+                <p style="font-size: 13px; line-height: 1.6; color: #08111f;">${ai.accessibility_analysis || ''}</p>
               </div>
             </div>
 
             <div class="section">
               <div class="section-title">6. Competitor Analysis</div>
-              <p style="font-size: 13px; line-height: 1.6; color: #334155;">${ai.competitor_analysis || ''}</p>
+              <p style="font-size: 13px; line-height: 1.6; color: #08111f;">${ai.competitor_analysis || ''}</p>
             </div>
 
             <div class="section">
               <div class="section-title">7. SWOT Analysis Matrix</div>
               <div class="grid-2">
                 <div>
-                  <strong style="color: #059669; font-size: 12px;">STRENGTHS</strong>
+                  <strong style="color: #43b96b; font-size: 12px;">STRENGTHS</strong>
                   <ul>${(swot.strengths || []).map(s => `<li>${s}</li>`).join('')}</ul>
                 </div>
                 <div>
-                  <strong style="color: #dc2626; font-size: 12px;">WEAKNESSES</strong>
+                  <strong style="color: #ef4444; font-size: 12px;">WEAKNESSES</strong>
                   <ul>${(swot.weaknesses || []).map(w => `<li>${w}</li>`).join('')}</ul>
                 </div>
                 <div style="margin-top: 10px;">
-                  <strong style="color: #2563eb; font-size: 12px;">OPPORTUNITIES</strong>
+                  <strong style="color: #315cf5; font-size: 12px;">OPPORTUNITIES</strong>
                   <ul>${(swot.opportunities || []).map(o => `<li>${o}</li>`).join('')}</ul>
                 </div>
                 <div style="margin-top: 10px;">
@@ -182,9 +231,8 @@ export default function Reports() {
         setToastMsg('⚠ Error: ' + err.message)
         setTimeout(() => setToastMsg(null), 4000)
       }
-    }, 1500)
+    }, 1200)
   }
-
 
   // Filter and Sort logic
   const filteredReports = reports
@@ -204,52 +252,64 @@ export default function Reports() {
   const uniqueTypes = Array.from(new Set(reports.map((r) => r.business_type).filter(Boolean)))
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto font-sans relative">
       
       {/* Toast Feedback */}
       {toastMsg && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[6000] px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-full shadow-2xl flex items-center gap-2 animate-bounce">
-          <Sparkles className="w-4 h-4" /> {toastMsg}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[6000] px-4 py-2 bg-[#315CF5] text-white text-xs font-bold rounded-full shadow-xl flex items-center gap-2 animate-bounce font-sans">
+          <Sparkles className="w-4 h-4 text-white" /> {toastMsg}
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+      {/* ── Page Header Bar ───────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#DDE3EC] rounded-2xl p-6 shadow-2xs relative overflow-hidden">
+        <div className="space-y-1 z-10">
+          <span className="text-[10px] font-mono font-bold text-[#315CF5] uppercase tracking-wider block">
+            REPORT LIBRARY / AI CONSULTING
+          </span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#E9EFFF] border border-[#315CF5]/20 text-[#315CF5] flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold text-slate-100">AI Generated Consulting Reports</h1>
+            <h1 className="text-2xl font-extrabold text-[#08111F] font-sans">
+              AI Generated Consulting Reports
+            </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Access and manage your McKinsey/Deloitte-style location intelligence feasibility reports
+          <p className="text-xs text-[#5D6675] font-sans font-normal leading-relaxed">
+            Access and manage your McKinsey/Deloitte-style location intelligence feasibility reports.
           </p>
         </div>
+
+        <button
+          onClick={() => navigate('/analyze')}
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 text-xs font-bold rounded-xl bg-[#315CF5] hover:bg-[#2448D8] text-white shadow-md transition-all duration-200 cursor-pointer shrink-0"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>New Feasibility Report</span>
+        </button>
       </div>
 
-      {/* Filters & Actions Bar */}
+      {/* ── Filters & Search Controls Bar (Light SaaS Controls) ─────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        {/* Search Input */}
+        <div className="relative md:col-span-2">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A94A3]" />
           <input
             type="text"
             placeholder="Search reports..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-900 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-[44px] pl-10 pr-4 text-xs rounded-xl bg-white border border-[#DDE3EC] text-[#08111F] placeholder-[#8A94A3] focus:outline-none focus:ring-2 focus:ring-[#315CF5]/20 focus:border-[#315CF5] hover:border-[#315CF5]/35 transition-all font-sans font-medium shadow-2xs"
           />
         </div>
 
-        {/* Filter Type */}
+        {/* Filter Business Type */}
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5D6675]" />
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-900 border border-white/10 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
-            style={{ colorScheme: 'dark' }}
+            className="w-full h-[44px] pl-10 pr-8 text-xs rounded-xl bg-white border border-[#DDE3EC] text-[#08111F] focus:outline-none focus:ring-2 focus:ring-[#315CF5]/20 focus:border-[#315CF5] hover:border-[#315CF5]/35 transition-all font-sans font-medium appearance-none shadow-2xs cursor-pointer"
           >
             <option value="all">All Business Types</option>
             {uniqueTypes.map((t) => (
@@ -258,14 +318,13 @@ export default function Reports() {
           </select>
         </div>
 
-        {/* Sort */}
+        {/* Sort Control */}
         <div className="relative">
-          <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <SortAsc className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5D6675]" />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-900 border border-white/10 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
-            style={{ colorScheme: 'dark' }}
+            className="w-full h-[44px] pl-10 pr-8 text-xs rounded-xl bg-white border border-[#DDE3EC] text-[#08111F] focus:outline-none focus:ring-2 focus:ring-[#315CF5]/20 focus:border-[#315CF5] hover:border-[#315CF5]/35 transition-all font-sans font-medium appearance-none shadow-2xs cursor-pointer"
           >
             <option value="date-desc">Newest First</option>
             <option value="date-asc">Oldest First</option>
@@ -275,83 +334,105 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Reports Grid */}
+      {/* ── Reports Grid / Loading / Empty State ───────────────────────────── */}
       {isLoading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-slate-400">
+        <div className="py-20 flex flex-col items-center justify-center text-[#5D6675] font-sans">
           <Spinner size="lg" />
-          <p className="text-xs mt-3">Loading reports...</p>
+          <p className="text-xs font-medium mt-3 text-[#8A94A3]">Loading consulting reports...</p>
         </div>
       ) : filteredReports.length === 0 ? (
-        <div className="py-20 rounded-2xl border border-white/5 bg-slate-900/40 flex flex-col items-center justify-center text-center p-6 space-y-3">
-          <div className="p-4 rounded-full bg-slate-800/80 text-slate-500 border border-white/5">
-            <FileText className="w-8 h-8" />
+        <div className="py-16 rounded-2xl border border-[#DDE3EC] bg-white flex flex-col items-center justify-center text-center p-8 space-y-4 shadow-2xs">
+          <div className="w-14 h-14 rounded-2xl bg-[#E9EFFF] text-[#315CF5] border border-[#315CF5]/20 flex items-center justify-center mx-auto shadow-2xs">
+            <FileText className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-semibold text-slate-200">No Reports Found</h3>
-          <p className="text-xs text-slate-400 max-w-md">
-            Go to the Analyze page, run a spatial feasibility check, and click "Generate AI Report" to create consulting reports.
-          </p>
+          <div className="space-y-1 max-w-md">
+            <h3 className="text-base font-extrabold text-[#08111F] font-sans">No consulting reports found</h3>
+            <p className="text-xs text-[#5D6675] leading-relaxed">
+              Generate an AI consulting report after analyzing a location on the map to build your executive report library.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/analyze')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-[#315CF5] hover:bg-[#2448D8] rounded-xl shadow-md transition-all cursor-pointer"
+          >
+            <span>Analyze a Location</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredReports.map((report) => {
-            const dateStr = new Date(report.created_at).toLocaleDateString()
-            const lat = parseFloat(report.latitude || 23.0225).toFixed(3)
-            const lon = parseFloat(report.longitude || 72.5714).toFixed(3)
+            const dateStr = new Date(report.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+            const lat = parseFloat(report.latitude || 23.0225).toFixed(4)
+            const lon = parseFloat(report.longitude || 72.5714).toFixed(4)
             const ai = report.ai_report_json || {}
             const recGrade = ai.investment_recommendation?.grade || 'B'
+            const scoreVal = report.score ?? 65.0
+            const scoreBadge = getScoreBadge(scoreVal)
+            const gradeClass = getGradeColor(recGrade)
 
             return (
               <div
                 key={report.id}
-                className="group p-5 rounded-2xl bg-slate-900/60 border border-white/10 hover:border-indigo-500/40 hover:bg-slate-900/90 transition-all flex flex-col justify-between space-y-4 shadow-lg"
+                onClick={() => setActiveReport(report)}
+                className="group p-5 rounded-2xl bg-white border border-[#DDE3EC] hover:border-[#315CF5]/35 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-4 shadow-2xs cursor-pointer relative overflow-hidden"
               >
                 <div className="space-y-3">
+                  {/* Top Title & Score Badge */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-slate-100 truncate group-hover:text-indigo-400 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold tracking-wider uppercase mb-1">
+                        <span className="text-[#315CF5]">{report.business_type?.toUpperCase()}</span>
+                        <span className="text-[#8A94A3]">•</span>
+                        <span className={gradeClass}>GRADE {recGrade}</span>
+                      </div>
+                      <h3 className="text-sm font-extrabold text-[#08111F] truncate font-sans group-hover:text-[#315CF5] transition-colors leading-snug">
                         {report.title}
                       </h3>
-                      <span className="text-[10px] font-bold text-indigo-400 tracking-wider">
-                        {report.business_type?.toUpperCase()} &bull; GRADE {recGrade}
-                      </span>
                     </div>
 
-                    <div className="flex flex-col items-end">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                        <Award className="w-3 h-3" /> {report.score?.toFixed(1) ?? '65.0'}/100
+                    {scoreBadge && (
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border shrink-0 ${scoreBadge.bg} ${scoreBadge.text} ${scoreBadge.border}`}>
+                        ● {scoreBadge.scoreText}
                       </span>
-                    </div>
+                    )}
                   </div>
 
-                  <p className="text-xs text-slate-300 line-clamp-2">
-                    {ai.executive_summary || 'No summary available.'}
+                  {/* Executive Summary Preview */}
+                  <p className="text-xs text-[#5D6675] font-sans font-medium line-clamp-2 leading-relaxed">
+                    {ai.executive_summary || 'Comprehensive spatial feasibility & commercial site intelligence report.'}
                   </p>
 
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-mono text-[10px] pt-1">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-indigo-400" /> {lat}, {lon}
+                  {/* Technical Coordinates & Date */}
+                  <div className="flex items-center justify-between text-xs text-[#8A94A3] pt-1 border-t border-[#E8ECF2]/60">
+                    <span className="flex items-center gap-1 font-mono font-bold text-[11px] text-[#5D6675]">
+                      <MapPin className="w-3.5 h-3.5 text-[#315CF5]" />
+                      {lat}° N · {lon}° E
                     </span>
-                    <span>{dateStr}</span>
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-[#8A94A3]">
+                      {dateStr}
+                    </span>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                {/* Card Actions Bar */}
+                <div className="pt-3 border-t border-[#E8ECF2] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setActiveReport(report)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition-all"
+                      onClick={(e) => { e.stopPropagation(); setActiveReport(report); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#E9EFFF] border border-[#315CF5]/20 text-[#315CF5] hover:bg-[#315CF5] hover:text-white transition-all cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5" /> View
+                      <Eye className="w-3.5 h-3.5" /> View Report
                     </button>
+
                     <button
-                      onClick={() => handleDownloadPdf(report)}
+                      onClick={(e) => { e.stopPropagation(); handleDownloadPdf(report); }}
                       disabled={isDownloadingPdf}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-[#DDE3EC] text-[#5D6675] hover:bg-[#F3F6FF] hover:text-[#315CF5] hover:border-[#315CF5]/30 transition-all disabled:opacity-50 cursor-pointer"
                     >
                       {isDownloadingPdf && downloadingReportId === report.id ? (
                         <>
-                          <Spinner size="sm" className="border-t-slate-400" /> Downloading...
+                          <Spinner size="sm" className="border-t-[#315CF5]" /> PDF...
                         </>
                       ) : (
                         <>
@@ -359,22 +440,24 @@ export default function Reports() {
                         </>
                       )}
                     </button>
+                  </div>
+
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => regenerateReport(report.id)}
-                      className="p-1.5 text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors"
+                      onClick={(e) => { e.stopPropagation(); regenerateReport(report.id); }}
+                      className="p-1.5 text-[#8A94A3] hover:text-[#315CF5] hover:bg-[#F3F6FF] rounded-lg transition-colors cursor-pointer"
                       title="Regenerate Report"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteReport(report.id); }}
+                      className="p-1.5 text-[#8A94A3] hover:text-red-600 hover:bg-[#FEE2E2] rounded-lg transition-colors cursor-pointer"
+                      title="Delete Report"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => deleteReport(report.id)}
-                    className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                    title="Delete Report"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               </div>
             )

@@ -7,47 +7,64 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Obrix brand palette — deep slate + electric indigo + emerald accent
+        // Obrix Light Geospatial Palette
+        obrix: {
+          bg: '#F6F8FC',
+          white: '#FFFFFF',
+          text: '#08111F',
+          secondary: '#5D6675',
+          muted: '#8A94A3',
+          border: '#DDE3EC',
+          blue: '#315CF5',
+          'blue-hover': '#2448D8',
+          'soft-blue': '#E9EFFF',
+          green: '#43B96B',
+          'soft-green': '#E7F7E9',
+          dark: '#08111F',
+        },
+        // Existing brand palette — preserved for app compatibility
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',  // Primary
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50:  '#e9efff',
+          100: '#dbe5ff',
+          200: '#bfd2ff',
+          300: '#94b3ff',
+          400: '#5e88ff',
+          500: '#315cf5',  // Primary brand blue
+          600: '#2448d8',  // Blue hover
+          700: '#1b34b3',
+          800: '#1a2b8e',
+          900: '#192772',
+          950: '#0f1747',
         },
         accent: {
-          400: '#34d399',  // Emerald — success / high scores
-          500: '#10b981',
-          600: '#059669',
+          400: '#43b96b',  // Success green
+          500: '#34a75b',
+          600: '#268a47',
         },
         surface: {
           50:  '#f8fafc',
           100: '#f1f5f9',
-          800: '#1e293b',  // Dark card background
+          800: '#1e293b',
           850: '#172032',
-          900: '#0f172a',  // Dark page background
+          900: '#f6f8fc',  // Updated to Obrix Light page bg
           950: '#080f1e',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Manrope', 'system-ui', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3730a3 100%)',
-        'gradient-surface': 'linear-gradient(180deg, #0f172a 0%, #080f1e 100%)',
-        'gradient-card': 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(79,70,229,0.05) 100%)',
+        'gradient-brand': 'linear-gradient(135deg, #315cf5 0%, #2448d8 100%)',
+        'gradient-surface': 'linear-gradient(180deg, #f6f8fc 0%, #ffffff 100%)',
+        'gradient-card': 'linear-gradient(135deg, rgba(49,92,245,0.05) 0%, rgba(67,185,107,0.03) 100%)',
       },
       boxShadow: {
-        'glow': '0 0 20px rgba(99, 102, 241, 0.3)',
-        'glow-lg': '0 0 40px rgba(99, 102, 241, 0.4)',
-        'card': '0 4px 24px rgba(0, 0, 0, 0.4)',
+        '2xs': '0 1px 2px rgba(8, 17, 31, 0.04)',
+        'xs': '0 2px 4px rgba(8, 17, 31, 0.05)',
+        'glow': '0 0 20px rgba(49, 92, 245, 0.25)',
+        'glow-lg': '0 0 40px rgba(49, 92, 245, 0.35)',
+        'card': '0 4px 24px rgba(8, 17, 31, 0.06)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
@@ -65,8 +82,8 @@ export default {
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)' },
-          '50%': { boxShadow: '0 0 40px rgba(99, 102, 241, 0.5)' },
+          '0%, 100%': { boxShadow: '0 0 20px rgba(49, 92, 245, 0.2)' },
+          '50%': { boxShadow: '0 0 40px rgba(49, 92, 245, 0.4)' },
         },
       },
       borderRadius: {

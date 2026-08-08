@@ -93,3 +93,70 @@ class GroqService:
         if last_error:
             raise last_error
         raise RuntimeError("Groq API generation failed after all attempts.")
+
+    @classmethod
+    def chat_completion(
+        cls,
+        messages: list[dict],
+        system_prompt: str,
+        timeout_sec: int = 20,
+    ) -> str:
+        """
+        Calls Groq Chat Completions API for conversational AI consultant responses.
+        Accepts system prompt and formatted message history.
+        """
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            logger.error("[Groq] GROQ_API_KEY environment variable is not configured.")
+            raise ValueError("Groq API Key Not Configured. Please set GROQ_API_KEY in backend/.env")
+
+        model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+        
+        try:
+            client = Groq(api_key=api_key, timeout=timeout_sec)
+        except Exception as e:
+            logger.error(f"[Groq] Failed to initialize client for chat: {str(e)}")
+            raise RuntimeError(f"Failed to initialize Groq client: {str(e)}")
+
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
+
+        last_error = None
+        for attempt in range(2):
+            try:
+                completion: ChatCompletion = client.chat.completions.create(
+                    model=model,
+                    messages=full_messages,
+                    temperature=0.3,
+                    max_tokens=1000,
+                )
+                
+                content = completion.choices[0].message.content
+                if content:
+                    return content.strip()
+                
+                raise ValueError("Groq API returned an empty completion response.")
+
+            except Exception as e:
+                last_error = e
+                err_msg = str(e).lower()
+                logger.error(f"[Groq Chat] API Error on attempt {attempt + 1}: {str(e)}")
+                
+                if "rate limit" in err_msg or "429" in err_msg:
+                    if attempt == 0:
+                        logger.warning("[Groq Chat] Rate limit hit. Falling back to llama-3.1-8b-instant...")
+                        model = "llama-3.1-8b-instant"
+                    else:
+                        raise RuntimeError("Groq API rate limit exceeded. Please retry in a few seconds.")
+                elif "401" in err_msg or "unauthorized" in err_msg or "invalid api key" in err_msg:
+                    raise ValueError("Invalid Groq API Key. Please verify GROQ_API_KEY in backend/.env")
+                elif "timeout" in err_msg or "deadline" in err_msg:
+                    if attempt == 0:
+                        timeout_sec += 10
+                        client = Groq(api_key=api_key, timeout=timeout_sec)
+                    else:
+                        raise TimeoutError("Groq API request timed out. Please retry.")
+
+        if last_error:
+            raise last_error
+        raise RuntimeError("Groq API chat completion failed.")
+

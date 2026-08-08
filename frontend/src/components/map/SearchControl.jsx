@@ -1,11 +1,9 @@
 /**
  * SearchControl — Nominatim geocoder with autocomplete.
  *
- * Phase 2 fix: Dropdown now uses createPortal + position:fixed.
- * This prevents the dropdown from being clipped by the sidebar's
- * overflow:hidden/auto scroll container, regardless of parent layout.
- *
- * Rate-limiting: 300ms debounce + User-Agent header (Nominatim policy).
+ * Dropdown uses createPortal + position:fixed + zIndex 700 to ensure
+ * results render cleanly above Leaflet map, overlays, and toolbars
+ * without being clipped.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
@@ -22,14 +20,12 @@ export default function SearchControl() {
   const [results,      setResults]      = useState([])
   const [isLoading,    setIsLoading]    = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
-  // Fixed pixel position for the portal dropdown
   const [dropdownPos,  setDropdownPos]  = useState({ top: 0, left: 0, width: 0 })
 
   const debounceRef    = useRef(null)
-  const inputWrapRef   = useRef(null)   // wraps the <input> — used to compute portal position
-  const containerRef   = useRef(null)   // whole component — used for click-outside detection
+  const inputWrapRef   = useRef(null)
+  const containerRef   = useRef(null)
 
-  // ── Compute fixed pixel position of the dropdown ────────────────────────────
   const updateDropdownPos = useCallback(() => {
     if (!inputWrapRef.current) return
     const rect = inputWrapRef.current.getBoundingClientRect()
@@ -40,7 +36,6 @@ export default function SearchControl() {
     })
   }, [])
 
-  // ── Nominatim search ─────────────────────────────────────────────────────────
   const search = useCallback(async (q) => {
     if (q.trim().length < 3) { setResults([]); return }
     setIsLoading(true)
@@ -70,7 +65,6 @@ export default function SearchControl() {
     return () => clearTimeout(debounceRef.current)
   }, [query, search])
 
-  // ── Click outside closes dropdown ────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -84,7 +78,6 @@ export default function SearchControl() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Update portal position when window is resized / scrolled
   useEffect(() => {
     if (!showDropdown) return
     window.addEventListener('resize', updateDropdownPos)
@@ -95,7 +88,6 @@ export default function SearchControl() {
     }
   }, [showDropdown, updateDropdownPos])
 
-  // ── Select a result ──────────────────────────────────────────────────────────
   const handleSelect = (item) => {
     const lat = parseFloat(parseFloat(item.lat).toFixed(6))
     const lon = parseFloat(parseFloat(item.lon).toFixed(6))
@@ -117,7 +109,6 @@ export default function SearchControl() {
     return { primary: parts[0], secondary: parts.slice(1, 3).join(', ') }
   }
 
-  // ── Portal dropdown ──────────────────────────────────────────────────────────
   const dropdown = showDropdown && results.length > 0
     ? createPortal(
         <div
@@ -127,28 +118,27 @@ export default function SearchControl() {
             top:   dropdownPos.top,
             left:  dropdownPos.left,
             width: dropdownPos.width,
-            zIndex: 9999,
+            zIndex: 700,
           }}
-          className="bg-[#0d1526] border border-white/10 rounded-2xl
-                     shadow-[0_16px_48px_rgba(0,0,0,0.7)] overflow-hidden"
+          className="bg-white border border-[#DDE3EC] rounded-2xl shadow-xl overflow-hidden font-sans"
         >
           {results.map((item) => {
             const { primary, secondary } = formatName(item)
             return (
               <button
                 key={item.place_id}
-                onMouseDown={(e) => e.preventDefault()} // prevent input blur before click
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleSelect(item)}
                 className="w-full flex items-start gap-3 px-4 py-3
-                           hover:bg-white/[0.06] transition-colors duration-100
-                           border-b border-white/[0.06] last:border-0 text-left"
+                           hover:bg-[#F6F8FC] active:bg-[#E9EFFF] transition-colors duration-100
+                           border-b border-[#E8ECF2] last:border-0 text-left cursor-pointer"
               >
-                <MapPin className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
+                <MapPin className="w-4 h-4 text-[#315CF5] mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate leading-snug">
+                  <p className="text-xs font-bold text-[#08111F] truncate leading-snug font-sans">
                     {primary}
                   </p>
-                  <p className="text-xs text-white/35 truncate mt-0.5 leading-snug">
+                  <p className="text-[11px] text-[#5D6675] truncate mt-0.5 leading-snug font-sans font-medium">
                     {secondary}
                   </p>
                 </div>
@@ -167,25 +157,23 @@ export default function SearchControl() {
               top:   dropdownPos.top,
               left:  dropdownPos.left,
               width: dropdownPos.width,
-              zIndex: 9999,
+              zIndex: 700,
             }}
-            className="bg-[#0d1526] border border-white/10 rounded-2xl
-                       px-4 py-3 shadow-xl"
+            className="bg-white border border-[#DDE3EC] rounded-2xl px-4 py-3 shadow-xl font-sans"
           >
-            <p className="text-sm text-white/35">No results for "{query}"</p>
+            <p className="text-xs text-[#8A94A3] font-medium font-sans">No results found for "{query}"</p>
           </div>,
           document.body,
         )
       : null
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      {/* Input wrapper — ref is used to compute portal position */}
+    <div ref={containerRef} className="relative w-full font-sans">
       <div ref={inputWrapRef} className="relative flex items-center">
-        <div className="absolute left-3.5 text-white/30 pointer-events-none z-10">
+        <div className="absolute left-3.5 text-[#5D6675] pointer-events-none z-10">
           {isLoading
-            ? <Loader2 className="w-4 h-4 animate-spin text-brand-400" />
-            : <Search className="w-4 h-4" />
+            ? <Loader2 className="w-4 h-4 animate-spin text-[#315CF5]" />
+            : <Search className="w-4 h-4 text-[#5D6675]" />
           }
         </div>
 
@@ -202,25 +190,24 @@ export default function SearchControl() {
           }}
           placeholder="Search any location…"
           autoComplete="off"
-          className="w-full bg-white/[0.05] border border-white/10
-                     rounded-xl pl-10 pr-9 py-3 text-sm text-white
-                     placeholder-white/25
-                     focus:outline-none focus:ring-2 focus:ring-brand-500/40
-                     focus:border-brand-500/30
-                     transition-all duration-200 hover:bg-white/[0.07]"
+          className="w-full bg-white border border-[#DDE3EC]
+                     rounded-xl pl-10 pr-9 py-2.5 text-xs text-[#08111F]
+                     placeholder-[#8A94A3] font-sans font-medium shadow-2xs
+                     focus:outline-none focus:ring-2 focus:ring-[#315CF5]/20
+                     focus:border-[#315CF5]
+                     transition-all duration-150 hover:border-[#315CF5]/35"
         />
 
         {query && (
           <button
             onClick={handleClear}
-            className="absolute right-3 text-white/25 hover:text-white/60 transition-colors"
+            className="absolute right-3 text-[#8A94A3] hover:text-[#08111F] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Dropdown rendered via portal — never clipped by parent overflow */}
       {dropdown}
     </div>
   )

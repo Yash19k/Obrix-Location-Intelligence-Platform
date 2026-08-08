@@ -1,13 +1,6 @@
-/**
- * Navbar — top bar with user avatar and navigation.
- *
- * Phase 1: Shows "Guest" when no user is logged in.
- * Phase 2: Will show real user info from authStore after JWT login.
- */
-
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { LogOut, User, ChevronDown, Settings } from 'lucide-react'
+import { LogOut, User, ChevronDown, Settings, Plus } from 'lucide-react'
 import useAuthStore from '@/store/authStore'
 
 export default function Navbar() {
@@ -15,11 +8,11 @@ export default function Navbar() {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const displayName = user?.full_name || 'Guest'
+  const displayName = user?.full_name || 'Guest User'
   const displayEmail = user?.email || 'Not signed in'
   const initials = user?.full_name
     ? user.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'G'
+    : 'U'
 
   const handleLogout = async () => {
     const { logout } = useAuthStore.getState()
@@ -28,79 +21,95 @@ export default function Navbar() {
   }
 
   return (
-    <header className="flex items-center justify-between px-6 py-3.5 border-b border-white/5 bg-surface-900/80 backdrop-blur-sm flex-shrink-0 relative z-[4000]">
-      {/* Left: greeting */}
-      <div>
-        <p className="text-xs text-white/30 uppercase tracking-widest">Location Intelligence</p>
-        <p className="text-sm font-semibold text-white">
-          {user ? `Welcome, ${user.full_name.split(' ')[0]}` : 'Obrix Dashboard'}
-        </p>
+    <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-[#DDE3EC] flex-shrink-0 relative z-[4000] font-sans">
+      {/* Left: Contextual Breadcrumb & Title */}
+      <div className="flex items-center gap-3">
+        <span className="text-[11px] font-mono font-semibold text-[#8A94A3] uppercase tracking-wider bg-[#F6F8FC] px-2.5 py-1 rounded border border-[#DDE3EC]">
+          OBRIX / OVERVIEW
+        </span>
+        <span className="hidden sm:inline-block text-xs font-medium text-[#5D6675]">
+          {user ? `Signed in as ${user.full_name.split(' ')[0]}` : 'Location Intelligence Command Center'}
+        </span>
       </div>
 
-      {/* Right: user avatar dropdown */}
-      <div className="relative z-[4500]">
+      {/* Right: Actions & User Avatar */}
+      <div className="flex items-center gap-3 relative z-[4500]">
         <button
-          id="navbar-user-menu-btn"
-          onClick={() => setMenuOpen((o) => !o)}
-          className="flex items-center gap-2.5 glass-card px-3 py-1.5 hover:bg-white/10 transition-all duration-200 rounded-xl"
+          onClick={() => navigate('/analyze')}
+          id="navbar-analyze-btn"
+          className="inline-flex items-center gap-1.5 bg-[#315CF5] hover:bg-[#2448D8] text-white text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 shadow-2xs hover:-translate-y-0.5 cursor-pointer"
         >
-          {/* Avatar */}
-          <div className="w-7 h-7 rounded-full bg-gradient-brand flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-            {initials}
-          </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-xs font-medium text-white/80 leading-tight">{displayName}</p>
-            <p className="text-[10px] text-white/30 leading-tight">{displayEmail}</p>
-          </div>
-          <ChevronDown
-            className={`w-3.5 h-3.5 text-white/40 transition-transform duration-200 ${
-              menuOpen ? 'rotate-180' : ''
-            }`}
-          />
+          <Plus className="w-3.5 h-3.5" />
+          <span>New Analysis</span>
         </button>
 
-        {/* Dropdown menu */}
-        {menuOpen && (
-          <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 z-[4800]"
-              onClick={() => setMenuOpen(false)}
-            />
-            <div className="absolute right-0 top-full mt-2 w-48 bg-[#0d1526] border border-white/10 py-1.5 z-[5000] rounded-xl shadow-2xl backdrop-blur-xl">
-              <Link
-                to="/settings"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                Settings
-              </Link>
-
-              <div className="border-t border-white/5 my-1" />
-
-              {user ? (
-                <button
-                  id="navbar-logout-btn"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Sign out
-                </button>
-              ) : (
-                <Link
-                  to="/auth/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-brand-400 hover:text-brand-300 hover:bg-brand-500/10 transition-colors"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  Sign in
-                </Link>
-              )}
+        {/* User Dropdown Button */}
+        <div className="relative">
+          <button
+            id="navbar-user-menu-btn"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="flex items-center gap-2.5 bg-[#F6F8FC] hover:bg-[#E9EFFF] border border-[#DDE3EC] px-3 py-1.5 transition-all duration-150 rounded-full cursor-pointer"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#315CF5] flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+              {initials}
             </div>
-          </>
-        )}
+            <span className="hidden md:block text-xs font-semibold text-[#08111F]">
+              {displayName}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-[#8A94A3] transition-transform duration-200 ${
+                menuOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {/* Dropdown Menu */}
+          {menuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-[4800]"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-[#DDE3EC] py-1.5 z-[5000] rounded-xl shadow-xl">
+                <div className="px-4 py-2 border-b border-[#DDE3EC]">
+                  <p className="text-xs font-bold text-[#08111F] font-sans truncate">{displayName}</p>
+                  <p className="text-[10px] text-[#8A94A3] font-mono truncate">{displayEmail}</p>
+                </div>
+
+                <Link
+                  to="/settings"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs font-medium text-[#5D6675] hover:text-[#08111F] hover:bg-[#F6F8FC] transition-colors"
+                >
+                  <Settings className="w-3.5 h-3.5 text-[#8A94A3]" />
+                  Settings
+                </Link>
+
+                <div className="border-t border-[#DDE3EC] my-1" />
+
+                {user ? (
+                  <button
+                    id="navbar-logout-btn"
+                    onClick={handleLogout}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Sign out
+                  </button>
+                ) : (
+                  <Link
+                    to="/auth/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs font-medium text-[#315CF5] hover:bg-[#E9EFFF] transition-colors"
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    Sign in
+                  </Link>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   )

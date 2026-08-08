@@ -14,6 +14,7 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet, useRouteError, u
 import { AlertTriangle, RefreshCw, LayoutDashboard } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Spinner from '@/components/ui/Spinner'
+import useAuthStore from '@/store/authStore'
 
 // ── Lazy-loaded pages ────────────────────────────────────────────────────────
 const Landing      = lazy(() => import('@/pages/Landing'))
@@ -25,14 +26,16 @@ const Results      = lazy(() => import('@/pages/analysis/Results'))
 const Reports      = lazy(() => import('@/pages/reports/Reports'))
 const SavedLocations = lazy(() => import('@/pages/saved/SavedLocations'))
 const Settings     = lazy(() => import('@/pages/settings/Settings'))
+const AskObrix      = lazy(() => import('@/pages/ai/AskObrix'))
+
 
 // ── Page suspense fallback ───────────────────────────────────────────────────
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-900">
+    <div className="min-h-screen flex items-center justify-center bg-[#F6F8FC] bg-gis-grid font-sans">
       <div className="flex flex-col items-center gap-4">
         <Spinner size="lg" />
-        <p className="text-white/30 text-sm animate-pulse">Loading...</p>
+        <p className="text-[#8A94A3] font-mono text-xs font-bold animate-pulse">OBRIX / LOADING PAGE...</p>
       </div>
     </div>
   )
@@ -48,27 +51,30 @@ function RouteErrorElement() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6">
-      <div className="max-w-md w-full p-6 rounded-2xl bg-slate-900 border border-white/10 shadow-2xl text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+    <div className="min-h-screen flex items-center justify-center bg-[#F6F8FC] bg-gis-grid p-6 font-sans">
+      <div className="max-w-md w-full p-7 rounded-2xl bg-white border border-[#DDE3EC] shadow-xl text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-[#FEE2E2] border border-red-200 text-red-600 flex items-center justify-center mx-auto shadow-2xs">
           <AlertTriangle className="w-6 h-6" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-slate-100">Something went wrong</h2>
-          <p className="text-xs text-slate-400">
+          <span className="text-[10px] font-mono font-bold text-[#8A94A3] uppercase tracking-wider block">
+            OBRIX / SYSTEM ERROR
+          </span>
+          <h2 className="text-lg font-extrabold text-[#08111F]">Something went wrong</h2>
+          <p className="text-xs text-[#5D6675]">
             We couldn't load this page. Please try refreshing or return to the dashboard.
           </p>
         </div>
         <div className="pt-2 flex items-center justify-center gap-3">
           <button
             onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-[#F6F8FC] text-[#5D6675] border border-[#DDE3EC] transition-all cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Try Again
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#315CF5] hover:bg-[#2448D8] text-white shadow-md transition-all cursor-pointer"
           >
             <LayoutDashboard className="w-3.5 h-3.5" /> Go to Dashboard
           </button>
@@ -76,6 +82,23 @@ function RouteErrorElement() {
       </div>
     </div>
   )
+}
+
+// ── Protected & Public Route Guards ──────────────────────────────────────────
+function ProtectedRoute() {
+  const { accessToken } = useAuthStore()
+  if (!accessToken) {
+    return <Navigate to="/auth/login" replace />
+  }
+  return <AppShell />
+}
+
+function PublicOnlyRoute({ children }) {
+  const { accessToken } = useAuthStore()
+  if (accessToken) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return children
 }
 
 // ── Router definition ────────────────────────────────────────────────────────
@@ -91,27 +114,31 @@ const router = createBrowserRouter([
     ),
   },
   {
-    // Auth pages (no shell layout)
+    // Auth pages — restricted to unauthenticated guests
     path: '/auth/login',
     errorElement: <RouteErrorElement />,
     element: (
-      <Suspense fallback={<PageLoader />}>
-        <Login />
-      </Suspense>
+      <PublicOnlyRoute>
+        <Suspense fallback={<PageLoader />}>
+          <Login />
+        </Suspense>
+      </PublicOnlyRoute>
     ),
   },
   {
     path: '/auth/register',
     errorElement: <RouteErrorElement />,
     element: (
-      <Suspense fallback={<PageLoader />}>
-        <Register />
-      </Suspense>
+      <PublicOnlyRoute>
+        <Suspense fallback={<PageLoader />}>
+          <Register />
+        </Suspense>
+      </PublicOnlyRoute>
     ),
   },
   {
-    // App shell wraps all dashboard-level pages
-    element: <AppShell />,
+    // App shell wraps protected workspace routes
+    element: <ProtectedRoute />,
     errorElement: <RouteErrorElement />,
     children: [
       {
@@ -135,6 +162,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <Results />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/ask-obrix',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <AskObrix />
           </Suspense>
         ),
       },

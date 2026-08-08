@@ -5,7 +5,7 @@ export default function Spinner({ size = 'md', className = '' }) {
   return (
     <div
       role="status"
-      className={`${sizeClass} border-2 border-white/10 border-t-brand-500 rounded-full animate-spin ${className}`}
+      className={`${sizeClass} border-2 border-[#DDE3EC] border-t-[#315CF5] rounded-full animate-spin ${className}`}
     />
   )
 }

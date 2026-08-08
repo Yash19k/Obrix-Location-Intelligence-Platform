@@ -7,6 +7,8 @@
 
 import { create } from 'zustand'
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/constants'
+import useAiChatStore from '@/store/aiChatStore'
+
 
 const useMapStore = create((set) => ({
   // ── Map viewport ───────────────────────────────────────────────────────────
@@ -32,7 +34,7 @@ const useMapStore = create((set) => ({
   showPanel: false,       // Controls right slide-in panel
 
   // ── Map Style & Layer Controls ─────────────────────────────────────────────
-  mapStyle: 'dark', // 'dark' | 'light' | 'street' | 'satellite'
+  mapStyle: 'light', // 'light' | 'dark' | 'street' | 'satellite'
 
   // ── Interactive Compare Mode ───────────────────────────────────────────────
   compareMode: false,
@@ -64,7 +66,8 @@ const useMapStore = create((set) => ({
   // ── Actions ───────────────────────────────────────────────────────────────
 
   /** Drop or move the marker — also flies the map to the new point. */
-  selectCoordinates: (lat, lon) =>
+  selectCoordinates: (lat, lon) => {
+    useAiChatStore.getState().resetChat()
     set({
       selectedLat: lat,
       selectedLon: lon,
@@ -73,7 +76,8 @@ const useMapStore = create((set) => ({
       analysisResult: null,
       showPanel: false,
       analysisError: null,
-    }),
+    })
+  },
 
   setMapCenter: (center, zoom) =>
     set({ mapCenter: center, ...(zoom !== undefined ? { mapZoom: zoom } : {}) }),
@@ -84,27 +88,32 @@ const useMapStore = create((set) => ({
   setSearchQuery: (q) => set({ searchQuery: q }),
   setLocating: (val) => set({ isLocating: val }),
 
-  clearSelection: () =>
+  clearSelection: () => {
+    useAiChatStore.getState().resetChat()
     set({
       selectedLat: null,
       selectedLon: null,
       analysisResult: null,
       showPanel: false,
       analysisError: null,
-    }),
+    })
+  },
 
   setBusinessType: (type) => set({ businessType: type }),
   setRadius: (r) => set({ radius: r }),
 
   setIsAnalyzing: (val) => set({ isAnalyzing: val }),
 
-  setAnalysisResult: (result) =>
-    set({ analysisResult: result, showPanel: true, isAnalyzing: false, analysisError: null }),
+  setAnalysisResult: (result) => {
+    useAiChatStore.getState().resetChat()
+    set({ analysisResult: result, showPanel: true, isAnalyzing: false, analysisError: null })
+  },
 
   setAnalysisError: (err) =>
     set({ analysisError: err, isAnalyzing: false }),
 
   closePanel: () => set({ showPanel: false }),
 }))
+
 
 export default useMapStore

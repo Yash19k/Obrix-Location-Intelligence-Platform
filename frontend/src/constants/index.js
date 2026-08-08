@@ -13,10 +13,10 @@ export const USER_KEY = 'obrix_user'
 
 // Analysis
 export const BUSINESS_TYPES = [
-  { value: 'pharmacy',   label: 'Pharmacy / Medical Store',  icon: '🏥' },
-  { value: 'stationery', label: 'Stationery / Book Store',  icon: '📚' },
-  { value: 'cafe',       label: 'Cafe / Restaurant',        icon: '☕' },
-  { value: 'grocery',    label: 'Grocery / Supermarket',    icon: '🛒' },
+  { value: 'pharmacy',   label: 'Pharmacy / Medical Store',  icon: '💊', image: '/pharmacy.png' },
+  { value: 'stationery', label: 'Stationery / Book Store',  icon: '📚', image: '/statinary.png' },
+  { value: 'cafe',       label: 'Cafe / Restaurant',        icon: '☕', image: '/cafe.png' },
+  { value: 'grocery',    label: 'Grocery / Supermarket',    icon: '🛒', image: '/grocery.png' },
 ]
 
 export const RADIUS_OPTIONS = [

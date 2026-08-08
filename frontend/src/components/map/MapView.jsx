@@ -100,17 +100,17 @@ const TILE_LAYERS = {
 
 export default function MapView() {
   const { mapStyle } = useMapStore()
-  const activeTileConfig = TILE_LAYERS[mapStyle] || TILE_LAYERS.dark
+  const activeTileConfig = TILE_LAYERS[mapStyle] || TILE_LAYERS.light
 
   return (
     // h-full w-full — fills the flex-1 parent in Analyze.jsx
-    <div className="h-full w-full relative bg-[#0b1120]">
+    <div className="h-full w-full relative bg-[#F6F8FC]">
       <MapContainer
         center={DEFAULT_MAP_CENTER}
         zoom={DEFAULT_MAP_ZOOM}
         minZoom={3}
-        className="h-full w-full bg-[#0b1120]"
-        style={{ backgroundColor: '#0b1120' }}
+        className="h-full w-full bg-[#F6F8FC]"
+        style={{ backgroundColor: '#F6F8FC' }}
         zoomControl={false}
         scrollWheelZoom
         doubleClickZoom={false}

@@ -29,9 +29,7 @@ git clone https://github.com/your-org/obrix.git
 cd obrix
 
 # Copy environment files
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-```
+
 
 Edit `backend/.env` and set a real `SECRET_KEY` and `DB_PASSWORD`.
 

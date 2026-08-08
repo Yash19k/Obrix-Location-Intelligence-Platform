@@ -1,21 +1,10 @@
-/**
- * FactorBar — animated horizontal progress bar for a single analysis factor.
- *
- * Phase 3.3: Added `explanation` prop — displayed as a subtitle beneath the bar.
- */
-
 import { useEffect, useState } from 'react'
 
-const COLOR_MAP = {
-  accessibility:  { color: '#818cf8', bg: 'rgba(129,140,248,0.12)' },
-  infrastructure: { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)'  },
-  commercial:     { color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
-  competition:    { color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
-  environment:    { color: '#4ade80', bg: 'rgba(74,222,128,0.12)'  },
-}
-
-function getColor(key) {
-  return COLOR_MAP[key] ?? { color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' }
+function getFactorColor(value) {
+  if (value >= 75) return '#43B96B'
+  if (value >= 50) return '#315CF5'
+  if (value >= 35) return '#D97706'
+  return '#EF4444'
 }
 
 export default function FactorBar({
@@ -27,7 +16,7 @@ export default function FactorBar({
   delay = 0,
 }) {
   const [width, setWidth] = useState(0)
-  const { color, bg } = getColor(factorKey)
+  const color = getFactorColor(value)
 
   useEffect(() => {
     const t = setTimeout(() => setWidth(Math.min(100, Math.max(0, value))), delay)
@@ -37,38 +26,37 @@ export default function FactorBar({
   const tier = value >= 75 ? 'High' : value >= 50 ? 'Medium' : 'Low'
 
   return (
-    <div className="space-y-1.5">
-      {/* Label row */}
+    <div className="space-y-1.5 font-sans">
+      {/* Label & Score row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-base leading-none">{icon}</span>
-          <span className="text-xs font-medium text-white/70">{label}</span>
+          <span className="text-sm leading-none">{icon}</span>
+          <span className="text-xs font-bold text-[#08111F] font-sans">{label}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/30">{tier}</span>
-          <span className="text-xs font-semibold tabular-nums" style={{ color }}>
-            {Math.round(value)}
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] font-mono text-[#5D6675]">{tier}</span>
+          <span className="text-xs font-mono font-extrabold text-[#08111F]">
+            {Math.round(value)} / 100
           </span>
         </div>
       </div>
 
-      {/* Track */}
-      <div className="h-1.5 rounded-full" style={{ background: bg }}>
+      {/* Progress Track */}
+      <div className="h-2 rounded-full bg-[#EEF1F5] overflow-hidden">
         {/* Fill */}
         <div
           className="h-full rounded-full"
           style={{
             width: `${width}%`,
-            background: `linear-gradient(90deg, ${color}80, ${color})`,
-            boxShadow: `0 0 8px ${color}50`,
-            transition: `width 1s cubic-bezier(0.4,0,0.2,1) ${delay}ms`,
+            backgroundColor: color,
+            transition: `width 0.8s cubic-bezier(0.4,0,0.2,1) ${delay}ms`,
           }}
         />
       </div>
 
-      {/* Explanation (Phase 3.3) */}
+      {/* Strengths / Risks explanation */}
       {explanation && (
-        <p className="text-[10px] text-white/30 leading-relaxed pl-0.5">
+        <p className="text-[11px] text-[#5D6675] leading-relaxed font-sans font-normal">
           {explanation}
         </p>
       )}

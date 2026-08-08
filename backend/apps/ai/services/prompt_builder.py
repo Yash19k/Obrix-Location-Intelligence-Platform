@@ -134,3 +134,126 @@ Return valid JSON matching this structure:
 }}
 """
         return prompt.strip()
+
+    @staticmethod
+    def build_chat_system_prompt() -> str:
+        return """You are Obrix AI, the Location Intelligence Consultant built into the Obrix platform.
+
+SCOPE:
+You ONLY assist with location intelligence, business site selection, geospatial analysis, Obrix analyses and related business-location questions.
+
+Your supported business categories are:
+- Pharmacy
+- Stationery
+- Cafe
+- Grocery
+
+You may explain relevant GIS/location concepts when they help the user understand a location decision.
+You are NOT a general-purpose assistant.
+
+If the user requests something unrelated to location intelligence or Obrix, do not answer the unrelated request.
+Instead respond briefly:
+'I specialize in location intelligence and site analysis. I can help you evaluate locations, understand scores, compare sites, or discuss business-location factors.'
+
+GROUNDING RULES:
+When Obrix analysis context is supplied:
+1. Treat supplied Obrix data as authoritative.
+2. Never change official scores.
+3. Never invent POIs.
+4. Never invent distances.
+5. Never invent competitor counts.
+6. Never invent demographic statistics.
+7. Never invent traffic measurements.
+8. Never claim Obrix measured something absent from context.
+
+Distinguish MEASURED FACTS from STRATEGIC INTERPRETATION.
+Never guarantee revenue, profitability or investment returns."""
+
+    @staticmethod
+    def generate_auto_title(first_message: str) -> str:
+        import re
+        msg = first_message.strip()
+        if not msg:
+            return "New Conversation"
+
+        # Remove punctuation
+        msg_clean = re.sub(r'[^\w\s]', '', msg)
+
+        # Remove introductory filler phrases
+        filler_pattern = r'^(what|how|why|tell me about|can you explain|explain|describe|is there|would you|which)\s+'
+        body = re.sub(filler_pattern, '', msg_clean, flags=re.IGNORECASE).strip()
+
+        if not body:
+            body = msg_clean.strip()
+
+        words = [w for w in body.split() if len(w) > 1]
+        if not words:
+            return "Location Intelligence"
+
+        short_title = " ".join(words[:4]).title()
+        return short_title[:45]
+
+
+
+    @staticmethod
+    def build_chat_context_prompt(context_type: str, analysis_context: dict) -> str:
+        if context_type == "comparison":
+            primary = analysis_context.get("primaryResult") or {}
+            secondary = analysis_context.get("secondaryResult") or {}
+            
+            p_res = primary.get("result") or primary
+            s_res = secondary.get("result") or secondary
+            
+            return f"""CURRENT OBRIX LOCATION COMPARISON CONTEXT:
+
+LOCATION A (PRIMARY):
+- Business Type: {primary.get('business_type', 'retail').upper()}
+- Coordinates: ({safe_float(primary.get('latitude')):.4f}, {safe_float(primary.get('longitude')):.4f})
+- Site Readiness Score: {safe_float(p_res.get('site_readiness_score')):.1f}/100
+- Score Breakdown: {p_res.get('score_breakdown', {})}
+- Competitor Count: {safe_int((p_res.get('raw_factors', {}).get('_meta', {}).get('competition_metrics') or p_res.get('competition_metrics') or {}).get('competitor_count'), 0)}
+- Top Strengths: {p_res.get('top_positive', [])}
+- Top Risks: {p_res.get('top_negative', [])}
+- Recommendation: {p_res.get('recommendation', 'N/A')}
+
+LOCATION B (COMPARED):
+- Business Type: {secondary.get('business_type', 'retail').upper()}
+- Coordinates: ({safe_float(secondary.get('latitude')):.4f}, {safe_float(secondary.get('longitude')):.4f})
+- Site Readiness Score: {safe_float(s_res.get('site_readiness_score')):.1f}/100
+- Score Breakdown: {s_res.get('score_breakdown', {})}
+- Competitor Count: {safe_int((s_res.get('raw_factors', {}).get('_meta', {}).get('competition_metrics') or s_res.get('competition_metrics') or {}).get('competitor_count'), 0)}
+- Top Strengths: {s_res.get('top_positive', [])}
+- Top Risks: {s_res.get('top_negative', [])}
+- Recommendation: {s_res.get('recommendation', 'N/A')}
+
+Use the above real Obrix comparison facts to answer the user's question."""
+
+        else:  # single_analysis
+            res = analysis_context.get("result") or analysis_context
+            score = safe_float(res.get("site_readiness_score"))
+            lat = safe_float(analysis_context.get("latitude"))
+            lon = safe_float(analysis_context.get("longitude"))
+            biz_type = (analysis_context.get("business_type") or "retail").upper()
+            radius = safe_int(analysis_context.get("radius_m"), 1000)
+            breakdown = res.get("score_breakdown", {})
+            counts = res.get("feature_counts", {})
+            
+            meta = res.get("raw_factors", {}).get("_meta", {})
+            comp_meta = meta.get("competition_metrics") or res.get("competition_metrics") or {}
+            road_meta = meta.get("road_hierarchy") or res.get("road_hierarchy") or {}
+
+            return f"""CURRENT OBRIX LOCATION ANALYSIS CONTEXT:
+- Business Type: {biz_type}
+- Coordinates: ({lat:.4f}, {lon:.4f})
+- Search Radius: {radius}m
+- Site Readiness Score: {score:.1f} / 100
+- Score Breakdown: {breakdown}
+- Nearby Feature Counts: {counts}
+- Total Competitors: {safe_int(comp_meta.get('competitor_count'), 0)} ({comp_meta.get('competition_level', 'Low')} competition level)
+- Road Accessibility: {road_meta.get('road_quality_label', 'Good')} ({road_meta.get('high_quality_count', 0)} major roads)
+- Top Strengths / Positives: {res.get('top_positive', [])}
+- Top Risks / Negatives: {res.get('top_negative', [])}
+- AI Recommendation: {res.get('recommendation', 'N/A')}
+
+Use the above real Obrix analysis facts to answer the user's question."""
+

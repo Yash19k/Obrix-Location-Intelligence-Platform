@@ -1,194 +1,106 @@
-/**
- * Dashboard — shows recent analyses and quick stats.
- *
- * Phase 1: Works without authentication. Handles API errors gracefully.
- * Phase 2: Will require a valid JWT token via ProtectedRoute.
- */
-
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { MapPin, Plus, TrendingUp, BarChart2, Clock, ArrowRight, Zap } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Sparkles, ArrowRight, Compass } from 'lucide-react'
 import useAnalysisStore from '@/store/analysisStore'
-import Card from '@/components/ui/Card'
-import Badge from '@/components/ui/Badge'
-import Spinner from '@/components/ui/Spinner'
+import useLocationStore from '@/store/locationStore'
+import useReportStore from '@/store/reportStore'
+import useAuthStore from '@/store/authStore'
+
+import DashboardMetrics from '@/components/dashboard/DashboardMetrics'
+import RecentAnalysesTable from '@/components/dashboard/RecentAnalysesTable'
+import TopOpportunitySpotlight from '@/components/dashboard/TopOpportunitySpotlight'
+import AskObrixModule from '@/components/dashboard/AskObrixModule'
+import SavedLocationsPreview from '@/components/dashboard/SavedLocationsPreview'
+import ReportsPreview from '@/components/dashboard/ReportsPreview'
+import DashboardQuickActions from '@/components/dashboard/DashboardQuickActions'
 
 export default function Dashboard() {
-  const { requests, fetchList, isLoading } = useAnalysisStore()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const { requests, fetchList, isLoading: isAnalysisLoading } = useAnalysisStore()
+  const { savedLocations, fetchLocations, isLoading: isLocLoading } = useLocationStore()
+  const { reports, fetchReports, isLoading: isRepLoading } = useReportStore()
 
   useEffect(() => {
-    // Attempt to fetch — will silently fail without auth in Phase 1
     fetchList()
+    fetchLocations()
+    fetchReports()
   }, [])
 
-  const completedRequests = requests.filter((r) => r.status === 'completed')
-  const avgScore =
-    completedRequests.length > 0
-      ? Math.round(
-          completedRequests.reduce(
-            (s, r) => s + parseFloat(r.result?.site_readiness_score || 0),
-            0
-          ) / completedRequests.length
-        )
-      : null
-
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto space-y-8 font-sans pb-12 animate-fade-in">
+      {/* ── 1. Workspace Header / Hero Banner ────────────────────────────────── */}
+      <div className="bg-white border border-[#DDE3EC] rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+        {/* Faint subtle grid background pattern */}
+        <div className="absolute inset-0 bg-gis-grid opacity-50 pointer-events-none" />
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="section-title">Dashboard</h1>
-          <p className="text-white/40 text-sm mt-1">
-            {requests.length > 0
-              ? `${requests.length} ${requests.length === 1 ? 'analysis' : 'analyses'} found`
-              : 'Welcome to Obrix — start your first analysis'}
+        <div className="relative z-10 space-y-2 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#F6F8FC] border border-[#DDE3EC] rounded-full">
+            <span className="w-2 h-2 rounded-full bg-[#315CF5] animate-pulse" />
+            <span className="text-xs font-mono font-bold tracking-wider text-[#315CF5] uppercase">
+              LOCATION INTELLIGENCE WORKSPACE
+            </span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#08111F] tracking-tight font-sans">
+            Your location intelligence,<br className="hidden sm:inline" /> at a glance.
+          </h1>
+
+          <p className="text-sm sm:text-base text-[#5D6675] font-sans font-normal leading-relaxed">
+            Review recent site analyses, revisit bookmarked opportunities, and continue evaluating new commercial locations.
           </p>
         </div>
-        <Link to="/analyze" id="dashboard-new-analysis-btn" className="btn-primary">
-          <Plus className="w-4 h-4" />
-          New Analysis
-        </Link>
-      </div>
 
-      {/* ── Stats Row ───────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
-            <BarChart2 className="w-5 h-5 text-brand-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{requests.length}</p>
-            <p className="text-xs text-white/40">Total Analyses</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
-            <TrendingUp className="w-5 h-5 text-accent-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{avgScore ?? '—'}</p>
-            <p className="text-xs text-white/40">Average Score</p>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-            <MapPin className="w-5 h-5 text-purple-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{completedRequests.length}</p>
-            <p className="text-xs text-white/40">Completed</p>
-          </div>
-        </Card>
-      </div>
-
-      {/* ── Quick Actions ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Link
-          to="/analyze"
-          id="dashboard-quick-analyze-btn"
-          className="glass-card p-5 flex items-center gap-4 hover:bg-white/10 transition-all duration-200 group border-brand-500/20 hover:border-brand-500/40"
-        >
-          <div className="w-10 h-10 rounded-xl bg-brand-500/15 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <MapPin className="w-5 h-5 text-brand-400" />
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Analyze a Location</p>
-            <p className="text-xs text-white/35 mt-0.5">Enter coordinates and get a Site Readiness Score</p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-brand-400 transition-colors" />
-        </Link>
-
-        <Link
-          to="/reports"
-          id="dashboard-quick-reports-btn"
-          className="glass-card p-5 flex items-center gap-4 hover:bg-white/10 transition-all duration-200 group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Zap className="w-5 h-5 text-accent-400" />
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">View Reports</p>
-            <p className="text-xs text-white/35 mt-0.5">Comparison reports and PDF exports</p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-accent-400 transition-colors" />
-        </Link>
-      </div>
-
-      {/* ── Recent Analyses ──────────────────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Recent Analyses</h2>
-          <Link
-            to="/analyze"
-            className="text-brand-400 hover:text-brand-300 text-sm flex items-center gap-1 transition-colors"
+        <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+          <button
+            onClick={() => navigate('/analyze')}
+            id="dashboard-hero-analyze-btn"
+            className="inline-flex items-center justify-center gap-2 bg-[#315CF5] hover:bg-[#2448D8] text-white text-sm font-semibold px-6 py-3 rounded-full transition-all duration-200 shadow-md hover:-translate-y-0.5 cursor-pointer"
           >
-            New <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+            <span>Analyze New Location</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner size="lg" />
-          </div>
-        ) : requests.length === 0 ? (
-          <Card className="text-center py-16">
-            <MapPin className="w-10 h-10 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40 text-sm font-medium">No analyses yet</p>
-            <p className="text-white/20 text-xs mt-1 mb-5">
-              Run your first location analysis to see results here.
-            </p>
-            <Link to="/analyze" id="dashboard-empty-analyze-btn" className="btn-primary text-sm py-2">
-              <Plus className="w-3.5 h-3.5" />
-              Start First Analysis
-            </Link>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {requests.slice(0, 8).map((req) => (
-              <Link
-                key={req.id}
-                to={`/analyze/${req.id}/results`}
-                className="glass-card p-4 flex items-center gap-4 hover:bg-white/10 transition-all duration-200 group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-4 h-4 text-brand-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {req.business_type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())} ·{' '}
-                    <span className="text-white/40 font-mono text-xs">
-                      {parseFloat(req.latitude).toFixed(4)},{' '}
-                      {parseFloat(req.longitude).toFixed(4)}
-                    </span>
-                  </p>
-                  <p className="text-xs text-white/30 flex items-center gap-1 mt-0.5">
-                    <Clock className="w-3 h-3" />
-                    {new Date(req.created_at).toLocaleDateString('en-IN', {
-                      day: 'numeric', month: 'short', year: 'numeric'
-                    })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  {req.result?.site_readiness_score && (
-                    <>
-                      <span className="text-xl font-bold text-gradient">
-                        {parseFloat(req.result.site_readiness_score).toFixed(0)}
-                      </span>
-                      <Badge score={parseFloat(req.result.site_readiness_score)} />
-                    </>
-                  )}
-                  {req.status !== 'completed' && (
-                    <span className="badge-fair capitalize">{req.status}</span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+          <button
+            onClick={() => navigate('/ask-obrix')}
+            id="dashboard-hero-ask-btn"
+            className="inline-flex items-center justify-center gap-2 bg-[#E9EFFF] hover:bg-[#315CF5] text-[#315CF5] hover:text-white border border-[#315CF5]/20 text-sm font-semibold px-5 py-3 rounded-full transition-all duration-200 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Ask Obrix</span>
+          </button>
+        </div>
       </div>
+
+      {/* ── 2. Top Summary Metrics ──────────────────────────────────────────── */}
+      <DashboardMetrics
+        totalAnalyses={requests.length}
+        totalSaved={savedLocations.length}
+        totalReports={reports.length}
+        isLoading={isAnalysisLoading}
+      />
+
+      {/* ── 3. Top Opportunity Spotlight (If Completed Analyses Exist) ──────── */}
+      <TopOpportunitySpotlight requests={requests} />
+
+      {/* ── 4. Main Section Grid: Recent Analyses & Ask Obrix Module ───────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8">
+          <RecentAnalysesTable requests={requests} isLoading={isAnalysisLoading} />
+        </div>
+        <div className="lg:col-span-4">
+          <AskObrixModule />
+        </div>
+      </div>
+
+      {/* ── 5. Lower Section Grid: Saved Locations & Recent Reports ────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <SavedLocationsPreview savedLocations={savedLocations} isLoading={isLocLoading} />
+        <ReportsPreview reports={reports} isLoading={isRepLoading} />
+      </div>
+
+      {/* ── 6. Quick Platform Actions ───────────────────────────────────────── */}
+      <DashboardQuickActions />
     </div>
   )
 }

@@ -1,17 +1,17 @@
 import L from 'leaflet'
-import { Marker, useMapEvents } from 'react-leaflet'
+import { Marker, Circle, useMapEvents } from 'react-leaflet'
 import useMapStore from '@/store/mapStore'
 import useAnalysisStore from '@/store/analysisStore'
 
-const createCustomMarkerIcon = (color = '#6366f1', label = '') => {
+const createCustomMarkerIcon = (color = '#315CF5', label = '') => {
   const svg = `
   <svg width="36" height="46" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
     <filter id="shadow">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.5)"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(8,17,31,0.3)"/>
     </filter>
     <g filter="url(#shadow)">
       <path d="M16 2C9.373 2 4 7.373 4 14c0 8.5 12 26 12 26s12-17.5 12-26C28 7.373 22.627 2 16 2z"
-        fill="${color}" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        fill="${color}" stroke="#FFFFFF" stroke-width="2"/>
     </g>
     <circle cx="16" cy="14" r="7" fill="white" opacity="0.95"/>
     <text x="16" y="17.5" font-size="10" font-weight="bold" fill="${color}" text-anchor="middle">${label}</text>
@@ -19,16 +19,16 @@ const createCustomMarkerIcon = (color = '#6366f1', label = '') => {
   `
   return L.divIcon({
     className: '',
-    html: `<div style="cursor:grab;filter:drop-shadow(0 4px 12px ${color}80)">${svg}</div>`,
+    html: `<div style="cursor:grab;filter:drop-shadow(0 4px 10px ${color}60)">${svg}</div>`,
     iconSize: [36, 46],
     iconAnchor: [18, 46],
     popupAnchor: [0, -48],
   })
 }
 
-const markerIconA = createCustomMarkerIcon('#6366f1', 'A')
-const markerIconB = createCustomMarkerIcon('#a855f7', 'B')
-const defaultIcon = createCustomMarkerIcon('#6366f1', '')
+const markerIconA = createCustomMarkerIcon('#315CF5', 'A')
+const markerIconB = createCustomMarkerIcon('#8B5CF6', 'B')
+const defaultIcon = createCustomMarkerIcon('#315CF5', '')
 
 export default function MarkerLayer() {
   const {
@@ -76,22 +76,35 @@ export default function MarkerLayer() {
 
   return (
     <>
-      {/* Standard single location selection marker */}
+      {/* Standard single location selection marker & translucent radius ring */}
       {!compareMode && selectedLat !== null && selectedLon !== null && (
-        <Marker
-          position={[selectedLat, selectedLon]}
-          icon={defaultIcon}
-          draggable
-          eventHandlers={{
-            dragend(e) {
-              const { lat, lng } = e.target.getLatLng()
-              selectCoordinates(
-                parseFloat(lat.toFixed(6)),
-                parseFloat(lng.toFixed(6)),
-              )
-            },
-          }}
-        />
+        <>
+          <Circle
+            center={[selectedLat, selectedLon]}
+            radius={radius}
+            pathOptions={{
+              color: '#315CF5',
+              fillColor: '#315CF5',
+              fillOpacity: 0.12,
+              weight: 1.5,
+              dashArray: '4, 4',
+            }}
+          />
+          <Marker
+            position={[selectedLat, selectedLon]}
+            icon={defaultIcon}
+            draggable
+            eventHandlers={{
+              dragend(e) {
+                const { lat, lng } = e.target.getLatLng()
+                selectCoordinates(
+                  parseFloat(lat.toFixed(6)),
+                  parseFloat(lng.toFixed(6)),
+                )
+              },
+            }}
+          />
+        </>
       )}
 
       {/* Compare Mode Marker A */}
