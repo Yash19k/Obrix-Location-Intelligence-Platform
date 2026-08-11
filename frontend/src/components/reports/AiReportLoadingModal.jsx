@@ -118,7 +118,7 @@ export default function AiReportLoadingModal({ isOpen, error, progress, stepMess
                     {progress >= 45 ? '✓' : '⏳'}
                   </span>
                   <span className={progress >= 45 ? 'text-[#08111F] font-bold' : 'text-[#8A94A3]'}>
-                    Consulting Gemini Spatial Intelligence
+                    Consulting Grok Spatial Intelligence
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export default function AiReportLoadingModal({ isOpen, error, progress, stepMess
 
             <div className="flex items-center justify-between pt-2">
               <span className="text-[10px] font-mono text-[#8A94A3]">
-                AI Model: Gemini 1.5 Flash
+                AI Model: Grok
               </span>
               <button
                 onClick={onCancel}
