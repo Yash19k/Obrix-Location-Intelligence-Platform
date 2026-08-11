@@ -50,8 +50,9 @@ COPY . .
 
 EXPOSE 8000
 
-# Automated database migrations + static collection on startup + exec Gunicorn for signal handling
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120 --access-logfile -"]
+# Automated database migrations + admin creation + static collection on startup + exec Gunicorn for signal handling
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py create_admin_from_env && python manage.py collectstatic --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120 --access-logfile -"]
+
 
 
 
