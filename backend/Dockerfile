@@ -5,12 +5,13 @@
 
 FROM python:3.12-slim AS builder
 
-# Install system dependencies required for PostGIS / GDAL
+# Install system dependencies required for PostGIS / GDAL / PROJ build
 RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
     libgeos-dev \
     libproj-dev \
+    proj-bin \
     binutils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,17 +20,21 @@ RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 WORKDIR /app
-COPY requirements/production.txt ./requirements.txt
+COPY requirements/ ./requirements/
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements/production.txt
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
+# Install system dependencies required for GeoDjango runtime (GDAL / GEOS / PROJ)
 RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
     libgeos-dev \
+    libproj-dev \
+    proj-bin \
+    binutils \
     && rm -rf /var/lib/apt/lists/*
 
 ENV VIRTUAL_ENV=/opt/venv
@@ -43,8 +48,8 @@ COPY --from=builder $VIRTUAL_ENV $VIRTUAL_ENV
 WORKDIR /app
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
+# Collect static files (dummy SECRET_KEY allows static compilation during image build)
+RUN SECRET_KEY=dummy-build-key-for-collectstatic python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
@@ -55,3 +60,4 @@ CMD ["gunicorn", "config.wsgi:application", \
      "--threads", "4", \
      "--timeout", "120", \
      "--access-logfile", "-"]
+
