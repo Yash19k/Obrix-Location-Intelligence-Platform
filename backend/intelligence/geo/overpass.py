@@ -5,7 +5,7 @@ Low-level Overpass API client.
 
 Responsibilities
 ----------------
-- Build the Overpass QL query for all 8 categories in one batched request.
+- Build the Overpass QL query for all categories in one batched request.
 - Execute HTTP POST with automatic failover across multiple public Overpass API mirrors.
 - Parse raw JSON response into a flat list of GeoFeature objects.
 - Handle HTTP / network errors gracefully (never raises to callers).
@@ -49,8 +49,6 @@ _ROAD_HIGHWAYS = frozenset({
 
 _HOSPITAL_AMENITIES   = frozenset({"hospital", "clinic", "doctors", "nursing_home"})
 _SCHOOL_AMENITIES     = frozenset({"school", "college", "university", "kindergarten", "language_school"})
-_RESTAURANT_AMENITIES = frozenset({"restaurant", "fast_food", "cafe", "food_court", "pub", "bar"})
-_BANK_AMENITIES       = frozenset({"bank", "atm", "bureau_de_change"})
 
 
 def _categorise(tags: dict[str, str]) -> Optional[str]:
@@ -61,6 +59,8 @@ def _categorise(tags: dict[str, str]) -> Optional[str]:
     landuse   = tags.get("landuse", "")
     pub_trans = tags.get("public_transport", "")
     building  = tags.get("building", "")
+    shop      = tags.get("shop", "")
+    office    = tags.get("office", "")
 
     if highway in _ROAD_HIGHWAYS:
         return "roads"
@@ -72,12 +72,32 @@ def _categorise(tags: dict[str, str]) -> Optional[str]:
         return "schools"
     if amenity == "fuel":
         return "fuel_stations"
-    if amenity in _RESTAURANT_AMENITIES:
+    if amenity in ("restaurant", "fast_food", "food_court", "pub", "bar"):
         return "restaurants"
-    if amenity in _BANK_AMENITIES:
+    if amenity in ("bank", "atm", "bureau_de_change"):
         return "banks"
     if leisure in ("park", "pitch", "playground", "garden") or landuse in ("park", "recreation_ground", "village_green", "grass"):
         return "parks"
+
+    # Business-specific categories
+    if amenity == "pharmacy":
+        return "pharmacies"
+    if shop in ("stationery", "books"):
+        return "stationery_shops"
+    if amenity == "cafe":
+        return "cafes"
+    if shop in ("grocery", "general"):
+        return "grocery_stores"
+    if shop == "supermarket":
+        return "supermarkets"
+    if shop == "convenience":
+        return "convenience_stores"
+    if bool(office) or building == "office":
+        return "offices"
+    if building == "commercial":
+        return "commercial"
+    if building == "apartments" or building == "residential" or landuse == "residential":
+        return "residential"
 
     return None
 
@@ -86,7 +106,7 @@ def _categorise(tags: dict[str, str]) -> Optional[str]:
 
 def _build_query(lat: float, lon: float, radius_m: int) -> str:
     """
-    Build a single batched Overpass QL query that retrieves all 8 feature
+    Build a single batched Overpass QL query that retrieves all feature
     categories in one HTTP call.
 
     Uses ``out center`` so that way/relation centroids are returned.
@@ -123,13 +143,39 @@ def _build_query(lat: float, lon: float, radius_m: int) -> str:
   node["amenity"="fuel"]({a});
   way["amenity"="fuel"]({a});
 
-  // ── Restaurants / cafes / fast food ──────────────────────────────────
-  node["amenity"~"^(restaurant|fast_food|cafe|food_court|pub|bar)$"]({a});
-  way["amenity"~"^(restaurant|fast_food|cafe|food_court|pub|bar)$"]({a});
+  // ── Restaurants / Dining ──────────────────────────────────────────────
+  node["amenity"~"^(restaurant|fast_food|food_court|pub|bar)$"]({a});
+  way["amenity"~"^(restaurant|fast_food|food_court|pub|bar)$"]({a});
 
   // ── Banks & ATMs ──────────────────────────────────────────────────────
   node["amenity"~"^(bank|atm|bureau_de_change)$"]({a});
   way["amenity"~"^(bank|atm|bureau_de_change)$"]({a});
+
+  // ── Pharmacies ────────────────────────────────────────────────────────
+  node["amenity"="pharmacy"]({a});
+  way["amenity"="pharmacy"]({a});
+
+  // ── Stationery & Book Shops ───────────────────────────────────────────
+  node["shop"~"^(stationery|books)$"]({a});
+  way["shop"~"^(stationery|books)$"]({a});
+
+  // ── Cafes ─────────────────────────────────────────────────────────────
+  node["amenity"="cafe"]({a});
+  way["amenity"="cafe"]({a});
+
+  // ── Grocery, Supermarkets, Convenience ───────────────────────────────
+  node["shop"~"^(grocery|general|supermarket|convenience)$"]({a});
+  way["shop"~"^(grocery|general|supermarket|convenience)$"]({a});
+
+  // ── Offices & Commercial ──────────────────────────────────────────────
+  node["office"]({a});
+  way["office"]({a});
+  way["building"~"^(office|commercial)$"]({a});
+
+  // ── Residential (apartments, residential landuse/buildings) ───────────
+  node["building"="apartments"]({a});
+  way["building"~"^(apartments|residential)$"]({a});
+  way["landuse"="residential"]({a});
 );
 out center body;
 """
@@ -204,7 +250,6 @@ class OverpassClient:
             "Content-Type": "application/x-www-form-urlencoded",
         })
 
-
     # ── Public interface ──────────────────────────────────────────────────────
 
     def fetch(
@@ -214,7 +259,7 @@ class OverpassClient:
         radius_m: int,
     ) -> FeatureResult:
         """
-        Fetch all 8 feature categories near (lat, lon) within radius_m metres.
+        Fetch all feature categories near (lat, lon) within radius_m metres.
 
         Never raises. Always returns a FeatureResult (possibly with error set).
         """
@@ -267,47 +312,67 @@ class OverpassClient:
         """
         POST the query to available Overpass API endpoints in order.
         Tries primary endpoint first; falls back to mirrors on HTTP 429 / timeout / 5xx.
+        Uses exponential backoff for HTTP 429 retries on the same endpoint.
         Returns (raw_json_dict, error_message).
         """
         last_error = None
         for endpoint in self._endpoints:
-            try:
-                response = self._session.post(
-                    endpoint,
-                    data={"data": query},
-                    timeout=TIMEOUT_SECS + 5,
-                )
-                if response.status_code == 429:
-                    logger.warning("Overpass endpoint %s rate-limited (429). Trying mirror...", endpoint)
-                    last_error = f"Overpass rate-limited (429) at {endpoint}"
-                    time.sleep(0.5)
-                    continue
+            logger.info("OverpassClient: Attempting query on endpoint: %s", endpoint)
+            initial_wait = 1.0
+            max_attempts = 2
+            
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    response = self._session.post(
+                        endpoint,
+                        data={"data": query},
+                        timeout=TIMEOUT_SECS,
+                    )
+                    
+                    if response.status_code == 429:
+                        backoff = initial_wait * (2 ** (attempt - 1))
+                        logger.warning(
+                            "Overpass endpoint %s rate-limited (429). Attempt %d of %d. Backing off for %.1fs...",
+                            endpoint, attempt, max_attempts, backoff
+                        )
+                        last_error = f"Rate limit (429) at {endpoint}"
+                        if attempt < max_attempts:
+                            time.sleep(backoff)
+                            continue
+                        else:
+                            break
 
-                if response.status_code >= 500:
-                    logger.warning("Overpass endpoint %s server error (%d). Trying mirror...", endpoint, response.status_code)
-                    last_error = f"Overpass HTTP {response.status_code} at {endpoint}"
-                    continue
+                    if response.status_code >= 500:
+                        logger.warning("Overpass endpoint %s returned server error (%d). Trying mirror...", endpoint, response.status_code)
+                        last_error = f"HTTP {response.status_code} at {endpoint}"
+                        break
 
-                response.raise_for_status()
-                data = response.json()
-                return data, None
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    if "elements" not in data:
+                        logger.warning("Overpass endpoint %s returned response without 'elements' key.", endpoint)
+                        last_error = f"Malformed response (no 'elements') from {endpoint}"
+                        break
+                        
+                    return data, None
 
-            except requests.exceptions.Timeout:
-                logger.warning("Overpass request to %s timed out. Trying mirror...", endpoint)
-                last_error = f"Overpass timeout at {endpoint}"
-                continue
-            except requests.exceptions.ConnectionError as exc:
-                logger.warning("Overpass connection error at %s: %s. Trying mirror...", endpoint, exc)
-                last_error = f"Overpass connection error at {endpoint}"
-                continue
-            except requests.exceptions.HTTPError as exc:
-                logger.warning("Overpass HTTP error at %s: %s", endpoint, exc)
-                last_error = f"Overpass HTTP error at {endpoint}"
-                continue
-            except ValueError:
-                logger.warning("Overpass returned non-JSON response from %s.", endpoint)
-                last_error = f"Overpass non-JSON response from {endpoint}"
-                continue
+                except requests.exceptions.Timeout:
+                    logger.warning("Overpass request to %s timed out. Trying mirror...", endpoint)
+                    last_error = f"Timeout at {endpoint}"
+                    break
+                except requests.exceptions.ConnectionError as exc:
+                    logger.warning("Overpass connection error at %s: %s. Trying mirror...", endpoint, exc)
+                    last_error = f"Connection error at {endpoint}"
+                    break
+                except requests.exceptions.HTTPError as exc:
+                    logger.warning("Overpass HTTP error at %s: %s. Trying mirror...", endpoint, exc)
+                    last_error = f"HTTP error at {endpoint}: {exc}"
+                    break
+                except ValueError:
+                    logger.warning("Overpass returned non-JSON response from %s. Trying mirror...", endpoint)
+                    last_error = f"Non-JSON response from {endpoint}"
+                    break
 
         return None, last_error or "All Overpass API endpoints failed or timed out."
 
@@ -326,4 +391,5 @@ class OverpassClient:
                 features[geo.category].append(geo)
 
         return features
+
 

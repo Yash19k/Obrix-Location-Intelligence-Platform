@@ -24,7 +24,17 @@ ALL_CATEGORIES: tuple[str, ...] = (
     "fuel_stations",
     "restaurants",
     "banks",
+    "pharmacies",
+    "stationery_shops",
+    "cafes",
+    "grocery_stores",
+    "supermarkets",
+    "convenience_stores",
+    "offices",
+    "commercial",
+    "residential",
 )
+
 
 
 # ── GeoFeature ────────────────────────────────────────────────────────────────

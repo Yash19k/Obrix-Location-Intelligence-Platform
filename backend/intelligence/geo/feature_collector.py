@@ -72,8 +72,8 @@ class FeatureCollector:
         cache=_DEFAULT_CACHE,
     ) -> None:
         if backend is None:
-            from intelligence.spatial.osm import get_osm_backend
-            backend = get_osm_backend()
+            from intelligence.geo.overpass import OverpassClient
+            backend = OverpassClient()
         self._backend = backend
         if cache is _DEFAULT_CACHE:
             self._cache = FeatureCache()

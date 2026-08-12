@@ -118,7 +118,7 @@ class TestCategorise(unittest.TestCase):
         self.assertEqual(_categorise({"amenity": "restaurant"}), "restaurants")
 
     def test_cafe(self):
-        self.assertEqual(_categorise({"amenity": "cafe"}), "restaurants")
+        self.assertEqual(_categorise({"amenity": "cafe"}), "cafes")
 
     def test_bank(self):
         self.assertEqual(_categorise({"amenity": "bank"}), "banks")
@@ -263,8 +263,9 @@ class TestOverpassClientFetch(unittest.TestCase):
         client = OverpassClient(endpoints=["http://overpass-api.de/api/interpreter"])
         result = client.fetch(28.6139, 77.2090, 1000)
 
-        # Should have attempted 1 POST request on the endpoint
-        self.assertEqual(mock_session.post.call_count, 1)
+        # Should have attempted 2 POST requests on the endpoint
+        self.assertEqual(mock_session.post.call_count, 2)
+        mock_sleep.assert_called_once_with(1.0)
         # Result is empty but does not raise
         self.assertFalse(result.ok)
         self.assertIsNotNone(result.error)

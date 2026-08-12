@@ -7,6 +7,7 @@ import useMapStore from '@/store/mapStore'
 import useLocationStore from '@/store/locationStore'
 import useAiChatStore from '@/store/aiChatStore'
 import useReportStore from '@/store/reportStore'
+import useAnalysisStore from '@/store/analysisStore'
 import { FACTOR_META, BUSINESS_TYPES } from '@/constants'
 import ScoreRing from './ScoreRing'
 import FactorBar from './FactorBar'
@@ -17,13 +18,77 @@ import ReportViewerModal from '../reports/ReportViewerModal'
 
 export default function AnalysisPanel() {
   const navigate = useNavigate()
-  const { analysisResult, isAnalyzing, closePanel, selectedLat, selectedLon } = useMapStore()
+  const {
+    analysisResult, isAnalyzing, closePanel, selectedLat, selectedLon,
+    analysisError, setIsAnalyzing, setAnalysisResult, setAnalysisError,
+    radius, businessType, setMapCenter
+  } = useMapStore()
+  const { submitAnalysis } = useAnalysisStore()
   const { saveLocation, isSaving, savedLocations, isComparisonOpen, closeComparison, secondaryResult } = useLocationStore()
   const { activeReport, closeReportViewer } = useReportStore()
 
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
   const [toastType, setToastType] = useState('success')
+
+  // Loading Skeleton state
+  if (isAnalyzing) return <LoadingSkeleton />
+
+  // Error state
+  if (analysisError) {
+    return (
+      <div className="flex flex-col h-full bg-white font-sans text-[#08111F]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#DDE3EC] bg-[#F6F8FC] flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <span className="text-xs font-mono font-bold text-red-500 uppercase">
+              Analysis Error
+            </span>
+          </div>
+          <button
+            onClick={closePanel}
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-[#8A94A3] hover:text-[#08111F] hover:bg-[#E2E8F0] transition-colors ml-2 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto shadow-2xs border border-red-100">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-extrabold text-[#08111F]">Analysis Failed</h3>
+          <p className="text-xs text-[#5D6675] leading-relaxed max-w-[280px] mx-auto">
+            {analysisError || "Unable to retrieve OpenStreetMap data right now. Please try again."}
+          </p>
+          <button
+            onClick={async () => {
+              if (selectedLat === null || selectedLon === null) return
+              setIsAnalyzing(true)
+              setAnalysisError(null)
+              if (setMapCenter) {
+                setMapCenter([selectedLat, selectedLon], 16)
+              }
+              const result = await submitAnalysis({
+                latitude: selectedLat,
+                longitude: selectedLon,
+                radius_m: radius,
+                business_type: businessType,
+              })
+              if (result.success) {
+                setAnalysisResult(result.data)
+              } else {
+                setAnalysisError(result.error)
+              }
+            }}
+            className="px-5 py-3 rounded-xl text-xs font-extrabold bg-[#315CF5] hover:bg-[#2448D8] text-white shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer font-sans"
+          >
+            Retry Analysis
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const result = analysisResult?.result ?? null
   const score = result?.site_readiness_score ? parseFloat(result.site_readiness_score) : 0

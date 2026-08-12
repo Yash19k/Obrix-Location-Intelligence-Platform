@@ -10,11 +10,11 @@ import ObrixAIWorkspace from '@/components/ai/ObrixAIWorkspace'
 
 export default function Analyze() {
   const {
-    showPanel, selectedLat, isAnalyzing, analysisResult,
+    showPanel, selectedLat, isAnalyzing, analysisResult, analysisError,
     compareMode, compareStep, locationA, locationB, exitCompareMode
   } = useMapStore()
 
-  const hasResultOrActive = showPanel || isAnalyzing || analysisResult !== null
+  const hasResultOrActive = showPanel || isAnalyzing || analysisResult !== null || analysisError !== null
 
   return (
     <div className="flex h-full overflow-hidden bg-[#F6F8FC] font-sans relative">

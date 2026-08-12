@@ -210,7 +210,9 @@ class RuleBasedScoringEngine:
         subfeatures = {k: [] for k in [
             "hospitals", "clinics", "diagnostic_centres", "schools", "colleges",
             "coaching_centres", "restaurants", "cafes", "banks", "malls", "offices",
-            "bus_stops", "metro", "parks", "apartments", "competition"
+            "bus_stops", "metro", "parks", "apartments", "competition", "pharmacies",
+            "stationery_shops", "grocery_stores", "supermarkets", "convenience_stores",
+            "residential"
         ]}
 
         if feature_result and hasattr(feature_result, "features"):
@@ -242,16 +244,11 @@ class RuleBasedScoringEngine:
                             subfeatures["schools"].append(feat_dict)
                             
                     elif cat == "restaurants":
-                        if any(x in amenity or x in name_lower for x in ["cafe", "coffee", "bakery"]):
-                            subfeatures["cafes"].append(feat_dict)
-                        else:
-                            subfeatures["restaurants"].append(feat_dict)
+                        subfeatures["restaurants"].append(feat_dict)
                             
                     elif cat == "banks":
                         if any(x in shop or x in building or x in name_lower for x in ["mall", "complex"]):
                             subfeatures["malls"].append(feat_dict)
-                        elif "office" in building or "office" in tags.get("office", "") or "office" in name_lower:
-                            subfeatures["offices"].append(feat_dict)
                         else:
                             subfeatures["banks"].append(feat_dict)
                             
@@ -262,10 +259,32 @@ class RuleBasedScoringEngine:
                             subfeatures["bus_stops"].append(feat_dict)
                             
                     elif cat == "parks":
-                        if any(x in name_lower or x in building for x in ["apartment", "residential"]):
-                            subfeatures["apartments"].append(feat_dict)
-                        else:
-                            subfeatures["parks"].append(feat_dict)
+                        subfeatures["parks"].append(feat_dict)
+
+                    elif cat == "pharmacies":
+                        subfeatures["pharmacies"].append(feat_dict)
+
+                    elif cat == "stationery_shops":
+                        subfeatures["stationery_shops"].append(feat_dict)
+
+                    elif cat == "cafes":
+                        subfeatures["cafes"].append(feat_dict)
+
+                    elif cat == "grocery_stores":
+                        subfeatures["grocery_stores"].append(feat_dict)
+
+                    elif cat == "supermarkets":
+                        subfeatures["supermarkets"].append(feat_dict)
+
+                    elif cat == "convenience_stores":
+                        subfeatures["convenience_stores"].append(feat_dict)
+
+                    elif cat == "offices":
+                        subfeatures["offices"].append(feat_dict)
+
+                    elif cat == "residential":
+                        subfeatures["residential"].append(feat_dict)
+                        subfeatures["apartments"].append(feat_dict)
 
         # BACKWARD COMPATIBILITY: If list is empty but we have counts, mock virtual features
         for key, parent in [
@@ -282,7 +301,6 @@ class RuleBasedScoringEngine:
                     ratio = 0.4 if key in ["hospitals", "colleges", "cafes", "malls"] else 0.6
                     allocated = max(1, int(cnt * ratio))
                     for i in range(allocated):
-                        # DENSITY DECAY VIRTUAL DISTANCE
                         v_dist = (800.0 / math.sqrt(cnt)) * (i + 0.2)
                         subfeatures[key].append({
                             "name": f"Virtual {key.replace('_', ' ').title()}",
@@ -582,26 +600,23 @@ class RuleBasedScoringEngine:
         weights = []
         sub_penalties = []
 
-        # ── Competitor Progressive Penalties ──
         comp_cfg = neg_cfg.get("competition", {})
         if comp_cfg:
             competitor_type = comp_cfg.get("competitor_type", biz_key)
             
             competitors = []
             if competitor_type == "pharmacy":
-                for f in subfeatures.get("clinics", []) + subfeatures.get("hospitals", []):
-                    if any(x in (f["name"] or "").lower() for x in ["pharmacy", "chemist", "medicals"]):
-                        competitors.append(f)
+                competitors = list(subfeatures.get("pharmacies", []))
             elif competitor_type == "stationery":
-                for f in subfeatures.get("schools", []) + subfeatures.get("coaching_centres", []):
-                    if any(x in (f["name"] or "").lower() for x in ["book", "stationery", "xerox"]):
-                        competitors.append(f)
+                competitors = list(subfeatures.get("stationery_shops", []))
             elif competitor_type == "cafe":
-                competitors = subfeatures.get("cafes", [])
+                competitors = list(subfeatures.get("cafes", []))
             elif competitor_type == "grocery":
-                for f in subfeatures.get("banks", []) + subfeatures.get("malls", []):
-                    if any(x in (f["name"] or "").lower() for x in ["grocery", "supermarket", "mart", "store"]):
-                        competitors.append(f)
+                competitors = (
+                    list(subfeatures.get("grocery_stores", [])) +
+                    list(subfeatures.get("supermarkets", [])) +
+                    list(subfeatures.get("convenience_stores", []))
+                )
 
             # If no actual competitors are parsed, but the counts suggest they exist, mock them
             if not competitors:
