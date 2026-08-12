@@ -203,6 +203,11 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
 # ---------------------------------------------------------------------------
+# OpenStreetMap Data Source — 'local' (PostGIS) or 'overpass' (Overpass API)
+# ---------------------------------------------------------------------------
+OSM_DATA_SOURCE = env("OSM_DATA_SOURCE", default="local")
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 LOGGING = {
@@ -232,3 +237,4 @@ LOGGING = {
         },
     },
 }
+

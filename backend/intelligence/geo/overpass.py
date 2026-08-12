@@ -6,16 +6,9 @@ Low-level Overpass API client.
 Responsibilities
 ----------------
 - Build the Overpass QL query for all 8 categories in one batched request.
-- Execute the HTTP POST against the public Overpass API endpoint.
-- Parse the raw JSON response into a flat list of GeoFeature objects.
+- Execute HTTP POST with automatic failover across multiple public Overpass API mirrors.
+- Parse raw JSON response into a flat list of GeoFeature objects.
 - Handle HTTP / network errors gracefully (never raises to callers).
-
-Design note
------------
-This class knows nothing about caching, Django, or the scoring engine.
-It is the only place where the Overpass API URL and QL syntax live.
-Replacing it with a PostGIS-backed implementation requires only changing
-FeatureCollector._backend, not any other module.
 """
 
 from __future__ import annotations
@@ -37,9 +30,14 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-OVERPASS_URL  = "https://overpass-api.de/api/interpreter"
-TIMEOUT_SECS  = 30        # total request timeout
-RETRY_WAIT    = 2.0       # seconds to wait before one retry on 429
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
+OVERPASS_URL = OVERPASS_ENDPOINTS[0]
+TIMEOUT_SECS = 25        # total request timeout
+RETRY_WAIT = 2.0         # wait before retry
 
 # ── Tag → Category mapping ────────────────────────────────────────────────────
 # Evaluated top-to-bottom; first match wins.
@@ -49,8 +47,8 @@ _ROAD_HIGHWAYS = frozenset({
     "tertiary", "residential", "unclassified", "living_street",
 })
 
-_HOSPITAL_AMENITIES = frozenset({"hospital", "clinic", "doctors", "nursing_home"})
-_SCHOOL_AMENITIES   = frozenset({"school", "college", "university", "kindergarten", "language_school"})
+_HOSPITAL_AMENITIES   = frozenset({"hospital", "clinic", "doctors", "nursing_home"})
+_SCHOOL_AMENITIES     = frozenset({"school", "college", "university", "kindergarten", "language_school"})
 _RESTAURANT_AMENITIES = frozenset({"restaurant", "fast_food", "cafe", "food_court", "pub", "bar"})
 _BANK_AMENITIES       = frozenset({"bank", "atm", "bureau_de_change"})
 
@@ -62,17 +60,15 @@ def _categorise(tags: dict[str, str]) -> Optional[str]:
     leisure   = tags.get("leisure", "")
     landuse   = tags.get("landuse", "")
     pub_trans = tags.get("public_transport", "")
-    bus       = tags.get("bus", "")
+    building  = tags.get("building", "")
 
     if highway in _ROAD_HIGHWAYS:
         return "roads"
-    if highway == "bus_stop":
+    if highway == "bus_stop" or pub_trans in ("stop_position", "platform", "station"):
         return "bus_stops"
-    if pub_trans == "stop_position" and bus == "yes":
-        return "bus_stops"
-    if amenity in _HOSPITAL_AMENITIES:
+    if amenity in _HOSPITAL_AMENITIES or building == "hospital":
         return "hospitals"
-    if amenity in _SCHOOL_AMENITIES:
+    if amenity in _SCHOOL_AMENITIES or building in ("school", "university", "college", "kindergarten"):
         return "schools"
     if amenity == "fuel":
         return "fuel_stations"
@@ -80,7 +76,7 @@ def _categorise(tags: dict[str, str]) -> Optional[str]:
         return "restaurants"
     if amenity in _BANK_AMENITIES:
         return "banks"
-    if leisure == "park" or landuse in ("park", "recreation_ground", "village_green"):
+    if leisure in ("park", "pitch", "playground", "garden") or landuse in ("park", "recreation_ground", "village_green", "grass"):
         return "parks"
 
     return None
@@ -104,21 +100,24 @@ def _build_query(lat: float, lon: float, radius_m: int) -> str:
 
   // ── Hospitals & clinics ───────────────────────────────────────────────
   node["amenity"~"^(hospital|clinic|doctors|nursing_home)$"]({a});
-  way["amenity"~"^(hospital|clinic)$"]({a});
+  way["amenity"~"^(hospital|clinic|doctors|nursing_home)$"]({a});
+  way["building"="hospital"]({a});
 
   // ── Schools & universities ────────────────────────────────────────────
   node["amenity"~"^(school|college|university|kindergarten|language_school)$"]({a});
-  way["amenity"~"^(school|college|university|kindergarten)$"]({a});
+  way["amenity"~"^(school|college|university|kindergarten|language_school)$"]({a});
+  way["building"~"^(school|university|college)$"]({a});
 
   // ── Bus stops ─────────────────────────────────────────────────────────
   node["highway"="bus_stop"]({a});
-  node["public_transport"="stop_position"]["bus"="yes"]({a});
+  node["public_transport"~"^(stop_position|platform)$"]({a});
+  way["highway"="bus_stop"]({a});
 
   // ── Parks ─────────────────────────────────────────────────────────────
-  node["leisure"="park"]({a});
-  way["leisure"="park"]({a});
-  relation["leisure"="park"]({a});
-  way["landuse"~"^(park|recreation_ground|village_green)$"]({a});
+  node["leisure"~"^(park|pitch|playground|garden)$"]({a});
+  way["leisure"~"^(park|pitch|playground|garden)$"]({a});
+  relation["leisure"~"^(park|pitch|playground|garden)$"]({a});
+  way["landuse"~"^(park|recreation_ground|village_green|grass)$"]({a});
 
   // ── Fuel stations ─────────────────────────────────────────────────────
   node["amenity"="fuel"]({a});
@@ -126,9 +125,11 @@ def _build_query(lat: float, lon: float, radius_m: int) -> str:
 
   // ── Restaurants / cafes / fast food ──────────────────────────────────
   node["amenity"~"^(restaurant|fast_food|cafe|food_court|pub|bar)$"]({a});
+  way["amenity"~"^(restaurant|fast_food|cafe|food_court|pub|bar)$"]({a});
 
   // ── Banks & ATMs ──────────────────────────────────────────────────────
   node["amenity"~"^(bank|atm|bureau_de_change)$"]({a});
+  way["amenity"~"^(bank|atm|bureau_de_change)$"]({a});
 );
 out center body;
 """
@@ -175,28 +176,34 @@ def _parse_element(element: dict) -> Optional[GeoFeature]:
 
 class OverpassClient:
     """
-    Thin HTTP wrapper around the Overpass API.
+    HTTP client for the Overpass API with multi-endpoint mirror failover.
 
     Usage
     -----
     client = OverpassClient()
-    result = client.fetch(lat=28.6139, lon=77.2090, radius_m=1000)
+    result = client.fetch(lat=23.0350, lon=72.5600, radius_m=1000)
     # result is a FeatureResult
 
     Error handling
     --------------
-    Network errors, timeouts, and malformed responses are caught internally.
-    The returned FeatureResult will have ``error`` set and empty ``features``.
-    A single retry is attempted on HTTP 429 (rate-limit).
+    Network errors, timeouts, and rate limits trigger failover to mirrors.
+    Always returns a FeatureResult (with error set if all mirrors fail).
     """
 
-    def __init__(self, url: str = OVERPASS_URL) -> None:
-        self._url = url
+    def __init__(self, endpoints: list[str] | None = None, url: str | None = None) -> None:
+        if url:
+            self._endpoints = [url]
+        elif endpoints:
+            self._endpoints = endpoints
+        else:
+            self._endpoints = OVERPASS_ENDPOINTS
+
         self._session = requests.Session()
         self._session.headers.update({
-            "User-Agent": "Obrix/1.0 (academic project; github.com/Yash19k/Obrix)",
+            "User-Agent": "Obrix/1.0 (Location Intelligence; github.com/Yash19k/Obrix)",
             "Content-Type": "application/x-www-form-urlencoded",
         })
+
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -209,14 +216,14 @@ class OverpassClient:
         """
         Fetch all 8 feature categories near (lat, lon) within radius_m metres.
 
-        Never raises.  Always returns a FeatureResult (possibly with error set).
+        Never raises. Always returns a FeatureResult (possibly with error set).
         """
         self._validate(lat, lon, radius_m)
         query = _build_query(lat, lon, radius_m)
 
         t0 = time.perf_counter()
-        raw = self._execute(query)
-        elapsed_ms = (time.perf_counter() - t0) * 1000
+        raw, error_msg = self._execute(query)
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
         if raw is None:
             return FeatureResult(
@@ -226,7 +233,7 @@ class OverpassClient:
                 features=empty_features(),
                 source="overpass",
                 query_time_ms=elapsed_ms,
-                error="Overpass API request failed. Using empty feature set.",
+                error=error_msg or "Overpass API request failed. Using empty feature set.",
             )
 
         features  = self._parse(raw)
@@ -256,44 +263,53 @@ class OverpassClient:
         if not (50 <= radius_m <= 50_000):
             raise ValueError(f"radius_m must be between 50 and 50000, got {radius_m}")
 
-    def _execute(self, query: str) -> Optional[dict]:
+    def _execute(self, query: str) -> tuple[Optional[dict], Optional[str]]:
         """
-        POST the query to the Overpass interpreter.
-        Retries once on HTTP 429.  Returns raw JSON dict or None on failure.
+        POST the query to available Overpass API endpoints in order.
+        Tries primary endpoint first; falls back to mirrors on HTTP 429 / timeout / 5xx.
+        Returns (raw_json_dict, error_message).
         """
-        for attempt in (1, 2):
+        last_error = None
+        for endpoint in self._endpoints:
             try:
                 response = self._session.post(
-                    self._url,
+                    endpoint,
                     data={"data": query},
-                    timeout=TIMEOUT_SECS + 5,  # slightly longer than QL timeout
+                    timeout=TIMEOUT_SECS + 5,
                 )
                 if response.status_code == 429:
-                    if attempt == 1:
-                        logger.warning("Overpass rate-limited (429). Retrying in %.0fs…", RETRY_WAIT)
-                        time.sleep(RETRY_WAIT)
-                        continue
-                    logger.error("Overpass rate-limited on retry. Returning empty result.")
-                    return None
+                    logger.warning("Overpass endpoint %s rate-limited (429). Trying mirror...", endpoint)
+                    last_error = f"Overpass rate-limited (429) at {endpoint}"
+                    time.sleep(0.5)
+                    continue
+
+                if response.status_code >= 500:
+                    logger.warning("Overpass endpoint %s server error (%d). Trying mirror...", endpoint, response.status_code)
+                    last_error = f"Overpass HTTP {response.status_code} at {endpoint}"
+                    continue
 
                 response.raise_for_status()
-                return response.json()
+                data = response.json()
+                return data, None
 
             except requests.exceptions.Timeout:
-                logger.error("Overpass request timed out after %ds.", TIMEOUT_SECS)
-                return None
+                logger.warning("Overpass request to %s timed out. Trying mirror...", endpoint)
+                last_error = f"Overpass timeout at {endpoint}"
+                continue
             except requests.exceptions.ConnectionError as exc:
-                logger.error("Overpass connection error: %s", exc)
-                return None
+                logger.warning("Overpass connection error at %s: %s. Trying mirror...", endpoint, exc)
+                last_error = f"Overpass connection error at {endpoint}"
+                continue
             except requests.exceptions.HTTPError as exc:
-                logger.error("Overpass HTTP error: %s", exc)
-                return None
+                logger.warning("Overpass HTTP error at %s: %s", endpoint, exc)
+                last_error = f"Overpass HTTP error at {endpoint}"
+                continue
             except ValueError:
-                # json() raised — response was not valid JSON
-                logger.error("Overpass returned non-JSON response.")
-                return None
+                logger.warning("Overpass returned non-JSON response from %s.", endpoint)
+                last_error = f"Overpass non-JSON response from {endpoint}"
+                continue
 
-        return None  # exhausted retries
+        return None, last_error or "All Overpass API endpoints failed or timed out."
 
     @staticmethod
     def _parse(raw: dict) -> dict[str, list[GeoFeature]]:
@@ -310,3 +326,4 @@ class OverpassClient:
                 features[geo.category].append(geo)
 
         return features
+

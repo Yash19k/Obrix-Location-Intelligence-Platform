@@ -72,7 +72,13 @@ class TestPostGISClientIntegration(TestCase):
         if connection.vendor != "postgresql":
             self.skipTest("Integration test requires PostgreSQL connection vendor")
 
+        with connection.cursor() as cursor:
+            tables = connection.introspection.table_names(cursor)
+            if "planet_osm_line" not in tables:
+                self.skipTest("Integration test requires imported planet_osm_* tables in PostGIS database")
+
         client = PostGISClient()
+
         res = client.fetch(lat=23.0225, lon=72.5714, radius_m=1000)
 
         self.assertIsInstance(res, FeatureResult)

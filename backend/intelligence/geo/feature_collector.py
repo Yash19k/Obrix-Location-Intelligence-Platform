@@ -40,6 +40,9 @@ from .types import FeatureResult
 logger = logging.getLogger(__name__)
 
 
+_DEFAULT_CACHE = object()
+
+
 class FeatureCollector:
     """
     Façade for the geospatial feature-retrieval pipeline.
@@ -66,13 +69,17 @@ class FeatureCollector:
     def __init__(
         self,
         backend=None,
-        cache: Optional[FeatureCache] = None,
+        cache=_DEFAULT_CACHE,
     ) -> None:
         if backend is None:
             from intelligence.spatial.osm import get_osm_backend
             backend = get_osm_backend()
         self._backend = backend
-        self._cache   = cache if cache is not None else FeatureCache()
+        if cache is _DEFAULT_CACHE:
+            self._cache = FeatureCache()
+        else:
+            self._cache = cache
+
 
     # ── Public interface ──────────────────────────────────────────────────────
 

@@ -41,6 +41,11 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 
 # ---------------------------------------------------------------------------
+# OpenStreetMap Data Source — defaults to 'overpass' in production
+# ---------------------------------------------------------------------------
+OSM_DATA_SOURCE = env("OSM_DATA_SOURCE", default="overpass")
+
+# ---------------------------------------------------------------------------
 # Sentry error monitoring
 # ---------------------------------------------------------------------------
 SENTRY_DSN = env("SENTRY_DSN", default="")
@@ -51,3 +56,4 @@ if SENTRY_DSN:
         traces_sample_rate=0.1,  # 10% of transactions for performance
         send_default_pii=False,  # Never send PII to Sentry
     )
+

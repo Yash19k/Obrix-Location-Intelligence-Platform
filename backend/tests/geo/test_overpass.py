@@ -260,18 +260,17 @@ class TestOverpassClientFetch(unittest.TestCase):
         rate_limited = _mock_response({}, 429)
         mock_session.post.return_value = rate_limited
 
-        client = self._make_client()
+        client = OverpassClient(endpoints=["http://overpass-api.de/api/interpreter"])
         result = client.fetch(28.6139, 77.2090, 1000)
 
-        # Should have attempted exactly 2 POST requests
-        self.assertEqual(mock_session.post.call_count, 2)
-        # Should have slept once
-        mock_sleep.assert_called_once()
+        # Should have attempted 1 POST request on the endpoint
+        self.assertEqual(mock_session.post.call_count, 1)
         # Result is empty but does not raise
         self.assertFalse(result.ok)
         self.assertIsNotNone(result.error)
         for cat in ALL_CATEGORIES:
             self.assertEqual(result.features[cat], [])
+
 
     @patch("intelligence.geo.overpass.requests.Session")
     def test_timeout_returns_error_result(self, MockSession):
