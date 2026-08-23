@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Compass } from 'lucide-react'
 import HeroGlobeVisualization from './HeroGlobeVisualization'
+import KineticText from '@/components/ui/KineticText'
 
 export default function HeroSection() {
   const navigate = useNavigate()
@@ -39,8 +40,10 @@ export default function HeroSection() {
 
           {/* Main Headline */}
           <h1 className="text-4xl sm:text-6xl lg:text-[72px] font-extrabold text-[#08111F] tracking-tight leading-[1.05] font-sans">
-            Make better location<br className="hidden sm:inline" />
-            decisions <span className="text-[#315CF5]">with intelligence.</span>
+            <KineticText as="span" text="Make better location" />
+            <br className="hidden sm:inline" />
+            <KineticText as="span" text="decisions " />
+            <KineticText as="span" text="with intelligence." className="text-[#315CF5]" />
           </h1>
 
           {/* Supporting Copy */}
