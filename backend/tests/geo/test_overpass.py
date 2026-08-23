@@ -265,13 +265,113 @@ class TestOverpassClientFetch(unittest.TestCase):
 
         # Should have attempted 2 POST requests on the endpoint
         self.assertEqual(mock_session.post.call_count, 2)
-        mock_sleep.assert_called_once_with(1.0)
+        self.assertEqual(mock_sleep.call_count, 1)
         # Result is empty but does not raise
         self.assertFalse(result.ok)
         self.assertIsNotNone(result.error)
         for cat in ALL_CATEGORIES:
             self.assertEqual(result.features[cat], [])
 
+    @patch("intelligence.geo.overpass.requests.Session")
+    def test_first_mirror_succeeds_fast(self, MockSession):
+        mock_session = MagicMock()
+        MockSession.return_value = mock_session
+        mock_session.post.return_value = _mock_response(SAMPLE_RESPONSE)
+
+        client = OverpassClient(endpoints=[
+            "https://mirror1.org/api",
+            "https://mirror2.org/api",
+            "https://mirror3.org/api",
+        ])
+        result = client.fetch(28.6139, 77.2090, 1000)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(mock_session.post.call_count, 1)
+        self.assertEqual(mock_session.post.call_args[0][0], "https://mirror1.org/api")
+
+    @patch("intelligence.geo.overpass.requests.Session")
+    def test_first_fails_second_succeeds(self, MockSession):
+        import requests as req_lib
+        mock_session = MagicMock()
+        MockSession.return_value = mock_session
+        mock_session.post.side_effect = [
+            req_lib.exceptions.Timeout("mirror 1 timeout"),
+            _mock_response(SAMPLE_RESPONSE),
+        ]
+
+        client = OverpassClient(endpoints=[
+            "https://mirror1.org/api",
+            "https://mirror2.org/api",
+            "https://mirror3.org/api",
+        ])
+        result = client.fetch(28.6139, 77.2090, 1000)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(mock_session.post.call_count, 2)
+        self.assertEqual(mock_session.post.call_args_list[0][0][0], "https://mirror1.org/api")
+        self.assertEqual(mock_session.post.call_args_list[1][0][0], "https://mirror2.org/api")
+
+    @patch("intelligence.geo.overpass.requests.Session")
+    def test_first_and_second_fail_third_succeeds(self, MockSession):
+        import requests as req_lib
+        mock_session = MagicMock()
+        MockSession.return_value = mock_session
+        mock_session.post.side_effect = [
+            req_lib.exceptions.ConnectionError("mirror 1 unreachable"),
+            _mock_response({}, status_code=502),
+            _mock_response(SAMPLE_RESPONSE),
+        ]
+
+        client = OverpassClient(endpoints=[
+            "https://mirror1.org/api",
+            "https://mirror2.org/api",
+            "https://mirror3.org/api",
+        ])
+        result = client.fetch(28.6139, 77.2090, 1000)
+
+        self.assertTrue(result.ok)
+        self.assertGreaterEqual(mock_session.post.call_count, 3)
+        self.assertIn("Apollo Hospital", [h.name for h in result.features["hospitals"]])
+
+    @patch("intelligence.geo.overpass.requests.Session")
+    def test_all_mirrors_fail_returns_error_result(self, MockSession):
+        import requests as req_lib
+        mock_session = MagicMock()
+        MockSession.return_value = mock_session
+        mock_session.post.side_effect = [
+            req_lib.exceptions.ConnectionError("mirror 1 failed"),
+            req_lib.exceptions.Timeout("mirror 2 timeout"),
+            _mock_response({}, status_code=503),
+            _mock_response({}, status_code=503),
+        ]
+
+        client = OverpassClient(endpoints=[
+            "https://mirror1.org/api",
+            "https://mirror2.org/api",
+            "https://mirror3.org/api",
+        ])
+        result = client.fetch(28.6139, 77.2090, 1000)
+
+        self.assertFalse(result.ok)
+        self.assertIsNotNone(result.error)
+        self.assertEqual(result.total, 0)
+
+    @patch("intelligence.geo.overpass.requests.Session")
+    def test_malformed_response_missing_elements_triggers_failover(self, MockSession):
+        mock_session = MagicMock()
+        MockSession.return_value = mock_session
+        bad_response = _mock_response({"something_else": []})
+        good_response = _mock_response(SAMPLE_RESPONSE)
+        mock_session.post.side_effect = [bad_response, good_response]
+
+        client = OverpassClient(endpoints=[
+            "https://mirror1.org/api",
+            "https://mirror2.org/api",
+        ])
+        result = client.fetch(28.6139, 77.2090, 1000)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(mock_session.post.call_count, 2)
 
     @patch("intelligence.geo.overpass.requests.Session")
     def test_timeout_returns_error_result(self, MockSession):

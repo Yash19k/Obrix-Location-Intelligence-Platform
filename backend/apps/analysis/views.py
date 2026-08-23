@@ -52,14 +52,20 @@ class AnalysisViewSet(viewsets.ModelViewSet):
         """
         Submit a new analysis request.
 
-        Phase 3.2: Calls FeatureCollector for real OSM data.
-        Phase 5+:  Will replace mock scoring with real scoring engine.
+        Calls FeatureCollector for real OSM data and scores only on valid data.
+        Raises OSMDataUnavailableException (HTTP 503) if OSM data collection fails.
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         analysis_request = serializer.save()
 
-        self._run_analysis(analysis_request)
+        try:
+            self._run_analysis(analysis_request)
+        except Exception:
+            analysis_request.status = AnalysisRequest.Status.FAILED
+            analysis_request.save(update_fields=["status"])
+            raise
+
         analysis_request.refresh_from_db()
 
         return Response(
@@ -73,8 +79,9 @@ class AnalysisViewSet(viewsets.ModelViewSet):
         """
         Phase 3 Final pipeline:
           1. Collect real OSM features (returns FeatureResult with GeoFeature objects).
-          2. Score using distance-enriched ScoringEngine (nearby = weighted more).
-          3. Persist result with confidence, distance metrics, road hierarchy, etc.
+          2. Abort if OSM data collection failed (never compute fake scores).
+          3. Score using distance-enriched ScoringEngine (nearby = weighted more).
+          4. Persist result with confidence, distance metrics, road hierarchy, etc.
         """
         lat      = float(analysis_request.latitude)
         lon      = float(analysis_request.longitude)
@@ -83,7 +90,18 @@ class AnalysisViewSet(viewsets.ModelViewSet):
         # ── Step 1: Collect real OSM features (full FeatureResult) ────────────
         osm_snapshot, feature_result = self._collect_osm_features(lat, lon, radius_m)
 
-        # ── Step 2: Distance-enriched scoring ─────────────────────────────────
+        if not feature_result or not feature_result.ok:
+            error_reason = (
+                feature_result.error if feature_result else osm_snapshot.get("osm_error")
+            ) or "OSM retrieval failed"
+            logger.warning(
+                "Analysis aborted: Live OSM data unavailable for request=%s (lat=%.4f, lon=%.4f). Reason: %s",
+                analysis_request.id, lat, lon, error_reason,
+            )
+            from core.exceptions import OSMDataUnavailableException
+            raise OSMDataUnavailableException()
+
+        # ── Step 2: Distance-enriched scoring (ONLY called on valid OSM data) ─
         feature_counts = osm_snapshot.get("feature_counts", {})
         score, breakdown, raw_factors = self._score(
             feature_counts=feature_counts,
@@ -112,11 +130,10 @@ class AnalysisViewSet(viewsets.ModelViewSet):
 
         logger.info(
             "Analysis complete: request=%s lat=%.4f lon=%.4f score=%.1f "
-            "total_features=%d confidence=%.0f osm_error=%s",
+            "total_features=%d confidence=%.0f",
             analysis_request.id, lat, lon, score,
             osm_snapshot.get("total_features", 0),
             raw_factors.get("_meta", {}).get("confidence", {}).get("score", 0),
-            osm_error,
         )
 
     # ── OSM collection ────────────────────────────────────────────────────────

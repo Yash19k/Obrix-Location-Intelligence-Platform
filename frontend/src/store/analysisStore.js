@@ -23,9 +23,17 @@ const useAnalysisStore = create((set, get) => ({
       }))
       return { success: true, data }
     } catch (err) {
-      const message = err.response?.data?.message || 'Analysis failed. Please try again.'
+      const isOsmError =
+        err.response?.status === 503 ||
+        err.response?.data?.code === 'osm_data_unavailable'
+      const message =
+        err.response?.data?.message ||
+        (isOsmError
+          ? 'Live OpenStreetMap data is temporarily unavailable. Please retry in a moment.'
+          : 'Analysis failed. Please try again.')
+      const code = err.response?.data?.code || (isOsmError ? 'osm_data_unavailable' : 'error')
       set({ error: message, isSubmitting: false })
-      return { success: false, error: message }
+      return { success: false, error: message, code }
     }
   },
 

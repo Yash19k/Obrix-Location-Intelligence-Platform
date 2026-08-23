@@ -36,13 +36,19 @@ export default function AnalysisPanel() {
 
   // Error state
   if (analysisError) {
+    const isOsmError =
+      typeof analysisError === 'string' &&
+      (analysisError.toLowerCase().includes('openstreetmap') ||
+        analysisError.toLowerCase().includes('osm') ||
+        analysisError.toLowerCase().includes('temporarily unavailable'))
+
     return (
       <div className="flex flex-col h-full bg-white font-sans text-[#08111F]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#DDE3EC] bg-[#F6F8FC] flex-shrink-0">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-            <span className="text-xs font-mono font-bold text-red-500 uppercase">
-              Analysis Error
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-mono font-bold text-amber-600 uppercase">
+              {isOsmError ? 'Live OSM Data Unavailable' : 'Analysis Error'}
             </span>
           </div>
           <button
@@ -54,14 +60,20 @@ export default function AnalysisPanel() {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto shadow-2xs border border-red-100">
+          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-2xs border border-amber-200">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-extrabold text-[#08111F]">Analysis Failed</h3>
-          <p className="text-xs text-[#5D6675] leading-relaxed max-w-[280px] mx-auto">
-            {analysisError || "Unable to retrieve OpenStreetMap data right now. Please try again."}
+          <h3 className="text-sm font-extrabold text-[#08111F]">
+            {isOsmError
+              ? 'Live OSM data temporarily unavailable'
+              : 'Analysis Failed'}
+          </h3>
+          <p className="text-xs text-[#5D6675] leading-relaxed max-w-[300px] mx-auto">
+            {analysisError ||
+              'Live OpenStreetMap data is temporarily unavailable. Please retry in a moment.'}
           </p>
           <button
+            id="retry-analysis-btn"
             onClick={async () => {
               if (selectedLat === null || selectedLon === null) return
               setIsAnalyzing(true)
@@ -81,7 +93,7 @@ export default function AnalysisPanel() {
                 setAnalysisError(result.error)
               }
             }}
-            className="px-5 py-3 rounded-xl text-xs font-extrabold bg-[#315CF5] hover:bg-[#2448D8] text-white shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer font-sans"
+            className="px-5 py-3 rounded-xl text-xs font-extrabold bg-[#315CF5] hover:bg-[#2448D8] text-white shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer font-sans active:scale-[0.98]"
           >
             Retry Analysis
           </button>

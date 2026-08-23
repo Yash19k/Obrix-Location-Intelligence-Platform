@@ -14,6 +14,7 @@ Responsibilities
 from __future__ import annotations
 
 import logging
+import random
 import time
 from typing import Optional
 
@@ -36,8 +37,8 @@ OVERPASS_ENDPOINTS = [
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
 OVERPASS_URL = OVERPASS_ENDPOINTS[0]
-TIMEOUT_SECS = 25        # total request timeout
-RETRY_WAIT = 2.0         # wait before retry
+TIMEOUT_SECS = 15        # per-request timeout
+
 
 # ── Tag → Category mapping ────────────────────────────────────────────────────
 # Evaluated top-to-bottom; first match wins.
@@ -311,31 +312,54 @@ class OverpassClient:
     def _execute(self, query: str) -> tuple[Optional[dict], Optional[str]]:
         """
         POST the query to available Overpass API endpoints in order.
-        Tries primary endpoint first; falls back to mirrors on HTTP 429 / timeout / 5xx.
-        Uses exponential backoff for HTTP 429 retries on the same endpoint.
+        Tries primary endpoint first; falls back to mirrors on HTTP 429 / 5xx / timeout / connection error.
+        Uses bounded exponential backoff with random jitter on transient errors (429, 502/503/504).
         Returns (raw_json_dict, error_message).
         """
         last_error = None
-        for endpoint in self._endpoints:
-            logger.info("OverpassClient: Attempting query on endpoint: %s", endpoint)
-            initial_wait = 1.0
+        total_endpoints = len(self._endpoints)
+
+        for idx, endpoint in enumerate(self._endpoints):
+            mirror_num = idx + 1
+            logger.info(
+                "OverpassClient: Attempting query on mirror %d/%d (%s)...",
+                mirror_num, total_endpoints, endpoint
+            )
+            initial_wait = 0.5
             max_attempts = 2
-            
+
             for attempt in range(1, max_attempts + 1):
+                attempt_t0 = time.perf_counter()
                 try:
                     response = self._session.post(
                         endpoint,
                         data={"data": query},
                         timeout=TIMEOUT_SECS,
                     )
-                    
+                    attempt_ms = (time.perf_counter() - attempt_t0) * 1000.0
+
                     if response.status_code == 429:
-                        backoff = initial_wait * (2 ** (attempt - 1))
-                        logger.warning(
-                            "Overpass endpoint %s rate-limited (429). Attempt %d of %d. Backing off for %.1fs...",
-                            endpoint, attempt, max_attempts, backoff
-                        )
+                        jitter = random.uniform(0.05, 0.20)
+                        backoff = (initial_wait * (2 ** (attempt - 1))) + jitter
                         last_error = f"Rate limit (429) at {endpoint}"
+                        logger.warning(
+                            "OverpassClient: Mirror %d/%d (%s) rate-limited (429) [attempt=%d/%d, wait=%.2fs].",
+                            mirror_num, total_endpoints, endpoint, attempt, max_attempts, backoff
+                        )
+                        if attempt < max_attempts:
+                            time.sleep(backoff)
+                            continue
+                        else:
+                            break
+
+                    if response.status_code in (502, 503, 504):
+                        jitter = random.uniform(0.05, 0.20)
+                        backoff = (initial_wait * (2 ** (attempt - 1))) + jitter
+                        last_error = f"HTTP {response.status_code} at {endpoint}"
+                        logger.warning(
+                            "OverpassClient: Mirror %d/%d (%s) returned transient error HTTP %d [attempt=%d/%d].",
+                            mirror_num, total_endpoints, endpoint, response.status_code, attempt, max_attempts
+                        )
                         if attempt < max_attempts:
                             time.sleep(backoff)
                             continue
@@ -343,37 +367,64 @@ class OverpassClient:
                             break
 
                     if response.status_code >= 500:
-                        logger.warning("Overpass endpoint %s returned server error (%d). Trying mirror...", endpoint, response.status_code)
                         last_error = f"HTTP {response.status_code} at {endpoint}"
+                        logger.warning(
+                            "OverpassClient: Mirror %d/%d (%s) returned server error HTTP %d. Trying next mirror...",
+                            mirror_num, total_endpoints, endpoint, response.status_code
+                        )
                         break
 
                     response.raise_for_status()
                     data = response.json()
-                    
-                    if "elements" not in data:
-                        logger.warning("Overpass endpoint %s returned response without 'elements' key.", endpoint)
+
+                    if not isinstance(data, dict) or "elements" not in data:
                         last_error = f"Malformed response (no 'elements') from {endpoint}"
+                        logger.warning(
+                            "OverpassClient: Mirror %d/%d (%s) returned response without 'elements' key. Trying next mirror...",
+                            mirror_num, total_endpoints, endpoint
+                        )
                         break
-                        
+
+                    elements_count = len(data.get("elements", []))
+                    logger.info(
+                        "OverpassClient: Mirror %d/%d (%s) succeeded in %.0fms (elements=%d).",
+                        mirror_num, total_endpoints, endpoint, attempt_ms, elements_count
+                    )
                     return data, None
 
                 except requests.exceptions.Timeout:
-                    logger.warning("Overpass request to %s timed out. Trying mirror...", endpoint)
                     last_error = f"Timeout at {endpoint}"
+                    logger.warning(
+                        "OverpassClient: Mirror %d/%d (%s) request timed out after %ds. Trying next mirror...",
+                        mirror_num, total_endpoints, endpoint, TIMEOUT_SECS
+                    )
                     break
                 except requests.exceptions.ConnectionError as exc:
-                    logger.warning("Overpass connection error at %s: %s. Trying mirror...", endpoint, exc)
                     last_error = f"Connection error at {endpoint}"
+                    logger.warning(
+                        "OverpassClient: Mirror %d/%d (%s) connection failed (%s). Trying next mirror...",
+                        mirror_num, total_endpoints, endpoint, exc
+                    )
                     break
                 except requests.exceptions.HTTPError as exc:
-                    logger.warning("Overpass HTTP error at %s: %s. Trying mirror...", endpoint, exc)
                     last_error = f"HTTP error at {endpoint}: {exc}"
+                    logger.warning(
+                        "OverpassClient: Mirror %d/%d (%s) HTTP error (%s). Trying next mirror...",
+                        mirror_num, total_endpoints, endpoint, exc
+                    )
                     break
-                except ValueError:
-                    logger.warning("Overpass returned non-JSON response from %s. Trying mirror...", endpoint)
+                except (ValueError, TypeError) as exc:
                     last_error = f"Non-JSON response from {endpoint}"
+                    logger.warning(
+                        "OverpassClient: Mirror %d/%d (%s) returned non-JSON response (%s). Trying next mirror...",
+                        mirror_num, total_endpoints, endpoint, exc
+                    )
                     break
 
+        logger.error(
+            "OverpassClient: All %d mirrors failed or timed out. Final outcome: OSM_DATA_UNAVAILABLE (last_error: %s)",
+            total_endpoints, last_error
+        )
         return None, last_error or "All Overpass API endpoints failed or timed out."
 
     @staticmethod
