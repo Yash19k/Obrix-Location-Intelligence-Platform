@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Compass } from 'lucide-react'
-import HeroMapVisualization from './HeroMapVisualization'
+import HeroGlobeVisualization from './HeroGlobeVisualization'
 
 export default function HeroSection() {
   const navigate = useNavigate()
@@ -79,8 +79,8 @@ export default function HeroSection() {
         </div>
 
         {/* RIGHT COLUMN — Product Visualization */}
-        <div className="lg:col-span-6 w-full">
-          <HeroMapVisualization />
+        <div className="lg:col-span-6 w-full flex items-center justify-center">
+          <HeroGlobeVisualization />
         </div>
       </div>
     </section>
