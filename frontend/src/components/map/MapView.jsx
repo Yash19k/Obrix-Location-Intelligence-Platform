@@ -100,7 +100,7 @@ const TILE_LAYERS = {
 
 export default function MapView() {
   const { mapStyle } = useMapStore()
-  const activeTileConfig = TILE_LAYERS[mapStyle] || TILE_LAYERS.light
+  const activeTileConfig = TILE_LAYERS[mapStyle] || TILE_LAYERS.street
 
   return (
     // h-full w-full — fills the flex-1 parent in Analyze.jsx

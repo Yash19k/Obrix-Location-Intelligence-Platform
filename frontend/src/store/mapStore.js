@@ -34,7 +34,7 @@ const useMapStore = create((set) => ({
   showPanel: false,       // Controls right slide-in panel
 
   // ── Map Style & Layer Controls ─────────────────────────────────────────────
-  mapStyle: 'light', // 'light' | 'dark' | 'street' | 'satellite'
+  mapStyle: 'street', // 'street' | 'light' | 'dark' | 'satellite'
 
   // ── Interactive Compare Mode ───────────────────────────────────────────────
   compareMode: false,

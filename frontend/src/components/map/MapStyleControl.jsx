@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react'
 import useMapStore from '@/store/mapStore'
 
 const MAP_STYLES = [
-  { id: 'light', label: 'Light', icon: Sun, desc: 'Clean bright theme (Default)' },
+  { id: 'street', label: 'Street', icon: Map, desc: 'Detailed street map (Default)' },
+  { id: 'light', label: 'Light', icon: Sun, desc: 'Clean bright theme' },
   { id: 'dark', label: 'Dark', icon: Moon, desc: 'High-contrast dark theme' },
-  { id: 'street', label: 'Street', icon: Map, desc: 'Detailed street map' },
   { id: 'satellite', label: 'Satellite', icon: Globe, desc: 'High-res satellite imagery' },
 ]
 
