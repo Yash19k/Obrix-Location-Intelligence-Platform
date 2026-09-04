@@ -19,7 +19,13 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
 )
-environ.Env.read_env(BASE_DIR / ".env")
+environ.Env.read_env(BASE_DIR / ".env", overwrite=True)
+
+# ---------------------------------------------------------------------------
+# Groq AI Configuration
+# ---------------------------------------------------------------------------
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_MODEL = env("GROQ_MODEL", default="openai/gpt-oss-120b")
 
 # ---------------------------------------------------------------------------
 # Security

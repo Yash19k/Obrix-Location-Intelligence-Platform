@@ -5,25 +5,37 @@ Supports model configuration, retry logic, timeout handling, and explicit except
 
 import os
 import logging
+from pathlib import Path
 from groq import Groq
 from groq.types.chat import ChatCompletion
+from django.conf import settings
+import dotenv
 
 logger = logging.getLogger(__name__)
 
+# Reload .env if needed
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+dotenv.load_dotenv(BASE_DIR / ".env", override=True)
+
 class GroqService:
+    @classmethod
+    def _get_api_key_and_model(cls):
+        # Reload latest from .env or settings
+        dotenv.load_dotenv(BASE_DIR / ".env", override=True)
+        api_key = getattr(settings, "GROQ_API_KEY", None) or os.environ.get("GROQ_API_KEY")
+        model = getattr(settings, "GROQ_MODEL", None) or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+        return api_key, model
+
     @classmethod
     def generate_content(cls, prompt: str, timeout_sec: int = 20) -> str:
         """
         Calls Groq Chat Completions API with the configured model.
         Handles rate limits, invalid keys, timeouts, and raises clear user-facing errors.
         """
-        api_key = os.environ.get("GROQ_API_KEY")
+        api_key, model = cls._get_api_key_and_model()
         if not api_key:
             logger.error("[Groq] GROQ_API_KEY environment variable is not configured.")
             raise ValueError("Groq API Key Not Configured. Please set GROQ_API_KEY in backend/.env")
-
-        # Configurable model (default: llama-3.3-70b-versatile, fallback: llama-3.1-8b-instant)
-        model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
         
         logger.info(f"[Groq] Starting report generation with model: {model}")
         
@@ -70,9 +82,9 @@ class GroqService:
                 # Check for rate limits (HTTP 429)
                 if "rate limit" in err_msg or "429" in err_msg:
                     if attempt == 0:
-                        # Fallback to faster, lower-rate-limited model on 429
-                        logger.warning("[Groq] Rate limit hit. Falling back to llama-3.1-8b-instant for retry...")
-                        model = "llama-3.1-8b-instant"
+                        # Fallback to smaller model on 429
+                        logger.warning("[Groq] Rate limit hit. Falling back to openai/gpt-oss-20b for retry...")
+                        model = "openai/gpt-oss-20b"
                     else:
                         raise RuntimeError("Groq API rate limit exceeded. Please retry in a few seconds.")
                 
@@ -105,12 +117,10 @@ class GroqService:
         Calls Groq Chat Completions API for conversational AI consultant responses.
         Accepts system prompt and formatted message history.
         """
-        api_key = os.environ.get("GROQ_API_KEY")
+        api_key, model = cls._get_api_key_and_model()
         if not api_key:
             logger.error("[Groq] GROQ_API_KEY environment variable is not configured.")
             raise ValueError("Groq API Key Not Configured. Please set GROQ_API_KEY in backend/.env")
-
-        model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
         
         try:
             client = Groq(api_key=api_key, timeout=timeout_sec)
@@ -143,8 +153,8 @@ class GroqService:
                 
                 if "rate limit" in err_msg or "429" in err_msg:
                     if attempt == 0:
-                        logger.warning("[Groq Chat] Rate limit hit. Falling back to llama-3.1-8b-instant...")
-                        model = "llama-3.1-8b-instant"
+                        logger.warning("[Groq Chat] Rate limit hit. Falling back to openai/gpt-oss-20b...")
+                        model = "openai/gpt-oss-20b"
                     else:
                         raise RuntimeError("Groq API rate limit exceeded. Please retry in a few seconds.")
                 elif "401" in err_msg or "unauthorized" in err_msg or "invalid api key" in err_msg:
